@@ -1,0 +1,1076 @@
+openapi: 3.1.0
+info:
+  title: haedes Public API
+  version: 0.1.0
+  description: |
+    The canonical platform contract for temporary Linux computers used by AI
+    agents. The API exposes sandbox, command, file, workspace, and snapshot
+    concepts. AWS, ECS, Fargate, and runtime implementation identifiers are
+    intentionally not part of this public contract.
+servers:
+  - url: https://api.example.haedes.dev
+    description: Production placeholder
+  - url: http://localhost:8080
+    description: Local development
+tags:
+  - name: Health
+  - name: Sandboxes
+  - name: Commands
+  - name: Files
+  - name: Snapshots
+security:
+  - bearerAuth: []
+paths:
+  /healthz:
+    get:
+      operationId: getHealth
+      tags: [Health]
+      security: []
+      summary: Check process health
+      responses:
+        '200':
+          description: The process is healthy.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+              example:
+                status: ok
+                version: 0.1.0
+  /readyz:
+    get:
+      operationId: getReadiness
+      tags: [Health]
+      security: []
+      summary: Check dependency readiness
+      responses:
+        '200':
+          description: The control plane is ready to accept requests.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+              example:
+                status: ready
+                version: 0.1.0
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /v1/sandboxes:
+    post:
+      operationId: createSandbox
+      tags: [Sandboxes]
+      summary: Request a temporary computer
+      description: |
+        Creates a sandbox asynchronously. Supplying the same Idempotency-Key
+        for the same owner returns the original sandbox instead of creating a
+        second computer.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SandboxCreateRequest'
+      responses:
+        '202':
+          description: Sandbox creation accepted.
+          headers:
+            Location:
+              $ref: '#/components/headers/Location'
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Sandbox'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+    get:
+      operationId: listSandboxes
+      tags: [Sandboxes]
+      summary: List the caller's sandboxes
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - name: state
+          in: query
+          description: Filter by lifecycle state.
+          schema:
+            $ref: '#/components/schemas/SandboxState'
+      responses:
+        '200':
+          description: A page of sandboxes.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SandboxPage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /v1/sandboxes/{sandboxId}:
+    parameters:
+      - $ref: '#/components/parameters/SandboxID'
+    get:
+      operationId: getSandbox
+      tags: [Sandboxes]
+      summary: Get a sandbox
+      responses:
+        '200':
+          description: Sandbox details.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Sandbox'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      operationId: destroySandbox
+      tags: [Sandboxes]
+      summary: Destroy a sandbox
+      description: Destroy is idempotent. A sandbox already in destroyed state is a successful no-op.
+      responses:
+        '202':
+          description: Destruction accepted or already complete.
+          headers:
+            Location:
+              $ref: '#/components/headers/Location'
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Sandbox'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /v1/sandboxes/{sandboxId}/commands:
+    parameters:
+      - $ref: '#/components/parameters/SandboxID'
+    post:
+      operationId: executeCommand
+      tags: [Commands]
+      summary: Execute a command in a running sandbox
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommandRequest'
+      responses:
+        '202':
+          description: Command accepted for execution.
+          headers:
+            Location:
+              $ref: '#/components/headers/Location'
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommandResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /v1/sandboxes/{sandboxId}/commands/{commandId}:
+    parameters:
+      - $ref: '#/components/parameters/SandboxID'
+      - $ref: '#/components/parameters/CommandID'
+    get:
+      operationId: getCommand
+      tags: [Commands]
+      summary: Get command status and result
+      responses:
+        '200':
+          description: Command status.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommandResult'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '408':
+          $ref: '#/components/responses/CommandTimeout'
+  /v1/sandboxes/{sandboxId}/commands/{commandId}/events:
+    parameters:
+      - $ref: '#/components/parameters/SandboxID'
+      - $ref: '#/components/parameters/CommandID'
+      - $ref: '#/components/parameters/LastEventID'
+    get:
+      operationId: streamCommandEvents
+      tags: [Commands]
+      summary: Stream ordered command events
+      description: |
+        Returns replayable Server-Sent Events. Each frame has an id, event,
+        and JSON data field. Last-Event-ID resumes from the last delivered
+        sequence while the command record is retained. The terminal completed
+        or failed event closes the stream.
+      responses:
+        '200':
+          description: Ordered command event stream.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            text/event-stream:
+              schema:
+                type: string
+              examples:
+                started:
+                  value: |-
+                    id: 1
+                    event: started
+                    data: {"type":"started","commandId":"cmd_01HZX","at":"2026-01-01T00:00:00Z"}
+
+                stdout:
+                  value: |-
+                    id: 2
+                    event: stdout
+                    data: {"type":"stdout","commandId":"cmd_01HZX","data":"hello\n","at":"2026-01-01T00:00:01Z"}
+
+                completed:
+                  value: |-
+                    id: 3
+                    event: completed
+                    data: {"type":"completed","commandId":"cmd_01HZX","result":{"id":"cmd_01HZX","sandboxId":"sbx_01HZY","command":"printf hello","exitCode":0,"startedAt":"2026-01-01T00:00:00Z","finishedAt":"2026-01-01T00:00:01Z","timedOut":false},"at":"2026-01-01T00:00:01Z"}
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /v1/sandboxes/{sandboxId}/files:
+    parameters:
+      - $ref: '#/components/parameters/SandboxID'
+      - $ref: '#/components/parameters/WorkspacePath'
+    get:
+      operationId: listFiles
+      tags: [Files]
+      summary: List workspace entries
+      responses:
+        '200':
+          description: Workspace entries below the requested path.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/sandboxes/{sandboxId}/files/content:
+    parameters:
+      - $ref: '#/components/parameters/SandboxID'
+      - $ref: '#/components/parameters/FilePath'
+    get:
+      operationId: readFile
+      tags: [Files]
+      summary: Read workspace file content
+      responses:
+        '200':
+          description: File bytes.
+          headers:
+            ETag:
+              description: Opaque content version for conditional requests.
+              schema:
+                type: string
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: writeFile
+      tags: [Files]
+      summary: Write workspace file content
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+              maxLength: 10485760
+      responses:
+        '200':
+          description: File written.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileEntry'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+    delete:
+      operationId: deleteFile
+      tags: [Files]
+      summary: Delete a workspace file or empty directory
+      responses:
+        '204':
+          description: File deleted.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /v1/sandboxes/{sandboxId}/snapshots:
+    parameters:
+      - $ref: '#/components/parameters/SandboxID'
+    post:
+      operationId: createSnapshot
+      tags: [Snapshots]
+      summary: Snapshot the workspace
+      description: Supplying the same Idempotency-Key returns the original snapshot instead of creating a second archive.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SnapshotCreateRequest'
+      responses:
+        '202':
+          description: Snapshot creation accepted.
+          headers:
+            Location:
+              $ref: '#/components/headers/Location'
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SnapshotMetadata'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+    get:
+      operationId: listSnapshots
+      tags: [Snapshots]
+      summary: List snapshots for a sandbox
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: A page of snapshots.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SnapshotPage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/snapshots/{snapshotId}:
+    parameters:
+      - $ref: '#/components/parameters/SnapshotID'
+    get:
+      operationId: getSnapshot
+      tags: [Snapshots]
+      summary: Get snapshot metadata
+      responses:
+        '200':
+          description: Snapshot metadata.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SnapshotMetadata'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/sandboxes/{sandboxId}/restore:
+    parameters:
+      - $ref: '#/components/parameters/SandboxID'
+    post:
+      operationId: restoreSnapshot
+      tags: [Snapshots]
+      summary: Restore a snapshot into a stopped sandbox
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RestoreRequest'
+      responses:
+        '202':
+          description: Restore accepted.
+          headers:
+            Location:
+              $ref: '#/components/headers/Location'
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Sandbox'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: API key
+      description: 'Server-side API key sent as `Authorization: Bearer <key>`.'
+  headers:
+    RequestID:
+      description: Request identifier for support and log correlation.
+      schema:
+        type: string
+        pattern: '^req_[A-Za-z0-9_-]+$'
+        example: req_01HZZ
+    Location:
+      description: URL of the accepted resource.
+      schema:
+        type: string
+        format: uri-reference
+  parameters:
+    SandboxID:
+      name: sandboxId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/SandboxID'
+    CommandID:
+      name: commandId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/CommandID'
+    SnapshotID:
+      name: snapshotId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/SnapshotID'
+    Cursor:
+      name: cursor
+      in: query
+      description: Opaque cursor returned by a previous page.
+      required: false
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 512
+    Limit:
+      name: limit
+      in: query
+      description: Maximum number of resources to return.
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Caller-generated key retained for safe retries of create operations.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+        pattern: '^[A-Za-z0-9._:-]+$'
+    LastEventID:
+      name: Last-Event-ID
+      in: header
+      required: false
+      description: Last SSE sequence received by the caller for replay.
+      schema:
+        type: string
+        pattern: '^[0-9]+$'
+    WorkspacePath:
+      name: path
+      in: query
+      required: false
+      description: Absolute path beneath `/workspace`; defaults to `/workspace`.
+      schema:
+        $ref: '#/components/schemas/WorkspacePath'
+    FilePath:
+      name: path
+      in: query
+      required: true
+      description: Absolute file path beneath `/workspace`.
+      schema:
+        $ref: '#/components/schemas/WorkspaceFilePath'
+  responses:
+    BadRequest:
+      description: Request validation failed.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: API key missing or invalid.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: authentication_required
+              message: A valid API key is required.
+              requestId: req_01HZZ
+              details: {}
+    NotFound:
+      description: Resource does not exist or is not visible to the caller.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Conflict:
+      description: Resource state or idempotency conflict.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    PayloadTooLarge:
+      description: Command, environment, or file body exceeds the configured limit.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: payload_too_large
+              message: File body exceeds the 10485760 byte limit.
+              requestId: req_01HZZ
+              details:
+                maxBytes: 10485760
+    CommandTimeout:
+      description: Command exceeded its server-side timeout.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: command_timeout
+              message: Command exceeded its timeout.
+              requestId: req_01HZZ
+              details:
+                commandId: cmd_01HZX
+                timeoutSeconds: 30
+    TooManyRequests:
+      description: Rate limit exceeded.
+      headers:
+        Retry-After:
+          description: Seconds until the caller may retry.
+          schema:
+            type: integer
+            minimum: 1
+        X-Request-ID:
+          $ref: '#/components/headers/RequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ServiceUnavailable:
+      description: Service is not ready.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+  schemas:
+    SandboxState:
+      type: string
+      enum:
+        - requested
+        - provisioning
+        - starting
+        - running
+        - snapshotting
+        - stopping
+        - stopped
+        - failed
+        - destroyed
+    SandboxID:
+      type: string
+      pattern: '^sbx_[A-Za-z0-9_-]+$'
+      description: Opaque sandbox identifier.
+      example: sbx_01HZY
+    CommandID:
+      type: string
+      pattern: '^cmd_[A-Za-z0-9_-]+$'
+      description: Opaque command identifier.
+      example: cmd_01HZX
+    SnapshotID:
+      type: string
+      pattern: '^snp_[A-Za-z0-9_-]+$'
+      description: Opaque snapshot identifier.
+      example: snp_01HZW
+    RequestID:
+      type: string
+      pattern: '^req_[A-Za-z0-9_-]+$'
+      example: req_01HZZ
+    Timestamp:
+      type: string
+      format: date-time
+      description: RFC 3339 timestamp with an explicit timezone.
+    WorkspacePath:
+      type: string
+      pattern: '^/workspace(?:/[^\\0-9][^\\x00]*)?$'
+      maxLength: 4096
+      default: /workspace
+    WorkspaceFilePath:
+      type: string
+      pattern: '^/workspace/.+$'
+      maxLength: 4096
+    RepositoryConfig:
+      type: object
+      additionalProperties: false
+      required: [provider, url, path]
+      properties:
+        provider:
+          type: string
+          enum: [github]
+        url:
+          type: string
+          format: uri
+          maxLength: 2048
+        ref:
+          type: string
+          minLength: 1
+          maxLength: 256
+        path:
+          $ref: '#/components/schemas/WorkspacePath'
+    SandboxConfig:
+      type: object
+      additionalProperties: false
+      required:
+        - image
+        - cpuMillis
+        - memoryMiB
+        - storageGiB
+        - maxLifetimeSeconds
+        - defaultCommandTimeoutSeconds
+        - environment
+      properties:
+        image:
+          type: string
+          minLength: 1
+          maxLength: 256
+        cpuMillis:
+          type: integer
+          minimum: 128
+          maximum: 8192
+        memoryMiB:
+          type: integer
+          minimum: 256
+          maximum: 32768
+        storageGiB:
+          type: integer
+          minimum: 1
+          maximum: 200
+        maxLifetimeSeconds:
+          type: integer
+          minimum: 60
+          maximum: 86400
+        defaultCommandTimeoutSeconds:
+          type: integer
+          minimum: 1
+          maximum: 900
+        environment:
+          type: object
+          maxProperties: 32
+          additionalProperties:
+            type: string
+            maxLength: 4096
+        repository:
+          $ref: '#/components/schemas/RepositoryConfig'
+        snapshotId:
+          $ref: '#/components/schemas/SnapshotID'
+    SandboxCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [config]
+      properties:
+        config:
+          $ref: '#/components/schemas/SandboxConfig'
+    Sandbox:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - state
+        - config
+        - createdAt
+        - expiresAt
+        - lastActivityAt
+        - snapshotIds
+      properties:
+        id:
+          $ref: '#/components/schemas/SandboxID'
+        state:
+          $ref: '#/components/schemas/SandboxState'
+        repository:
+          $ref: '#/components/schemas/RepositoryConfig'
+        config:
+          $ref: '#/components/schemas/SandboxConfig'
+        createdAt:
+          $ref: '#/components/schemas/Timestamp'
+        expiresAt:
+          $ref: '#/components/schemas/Timestamp'
+        lastActivityAt:
+          $ref: '#/components/schemas/Timestamp'
+        currentCommandId:
+          $ref: '#/components/schemas/CommandID'
+        snapshotIds:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/SnapshotID'
+    CommandRequest:
+      type: object
+      additionalProperties: false
+      required: [command]
+      properties:
+        command:
+          type: string
+          minLength: 1
+          maxLength: 16384
+        cwd:
+          $ref: '#/components/schemas/WorkspacePath'
+        environment:
+          type: object
+          maxProperties: 32
+          additionalProperties:
+            type: string
+            maxLength: 4096
+        timeoutSeconds:
+          type: integer
+          minimum: 1
+          maximum: 900
+    CommandResult:
+      type: object
+      additionalProperties: false
+      required: [id, sandboxId, command, exitCode, startedAt, timedOut]
+      properties:
+        id:
+          $ref: '#/components/schemas/CommandID'
+        sandboxId:
+          $ref: '#/components/schemas/SandboxID'
+        command:
+          type: string
+          maxLength: 16384
+        exitCode:
+          type: [integer, 'null']
+          minimum: 0
+        startedAt:
+          $ref: '#/components/schemas/Timestamp'
+        finishedAt:
+          $ref: '#/components/schemas/Timestamp'
+        timedOut:
+          type: boolean
+        signal:
+          type: string
+          maxLength: 64
+    CommandEvent:
+      discriminator:
+        propertyName: type
+      oneOf:
+        - $ref: '#/components/schemas/CommandStartedEvent'
+        - $ref: '#/components/schemas/CommandOutputEvent'
+        - $ref: '#/components/schemas/CommandCompletedEvent'
+        - $ref: '#/components/schemas/CommandFailedEvent'
+    CommandStartedEvent:
+      type: object
+      additionalProperties: false
+      required: [type, commandId, at]
+      properties:
+        type:
+          const: started
+        commandId:
+          $ref: '#/components/schemas/CommandID'
+        at:
+          $ref: '#/components/schemas/Timestamp'
+    CommandOutputEvent:
+      type: object
+      additionalProperties: false
+      required: [type, commandId, data, at]
+      properties:
+        type:
+          type: string
+          enum: [stdout, stderr]
+        commandId:
+          $ref: '#/components/schemas/CommandID'
+        data:
+          type: string
+          maxLength: 1048576
+        at:
+          $ref: '#/components/schemas/Timestamp'
+    CommandCompletedEvent:
+      type: object
+      additionalProperties: false
+      required: [type, commandId, result, at]
+      properties:
+        type:
+          const: completed
+        commandId:
+          $ref: '#/components/schemas/CommandID'
+        result:
+          $ref: '#/components/schemas/CommandResult'
+        at:
+          $ref: '#/components/schemas/Timestamp'
+    CommandFailedEvent:
+      type: object
+      additionalProperties: false
+      required: [type, commandId, code, message, at]
+      properties:
+        type:
+          const: failed
+        commandId:
+          $ref: '#/components/schemas/CommandID'
+        code:
+          type: string
+          maxLength: 128
+        message:
+          type: string
+          maxLength: 2048
+        at:
+          $ref: '#/components/schemas/Timestamp'
+    FileEntry:
+      type: object
+      additionalProperties: false
+      required: [path, kind]
+      properties:
+        path:
+          $ref: '#/components/schemas/WorkspaceFilePath'
+        kind:
+          type: string
+          enum: [file, directory, symlink]
+        byteSize:
+          type: integer
+          minimum: 0
+          maximum: 10485760
+        modifiedAt:
+          $ref: '#/components/schemas/Timestamp'
+    FileListResponse:
+      type: object
+      additionalProperties: false
+      required: [path, entries]
+      properties:
+        path:
+          $ref: '#/components/schemas/WorkspacePath'
+        entries:
+          type: array
+          maxItems: 10000
+          items:
+            $ref: '#/components/schemas/FileEntry'
+    SnapshotCreateRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        expiresAt:
+          $ref: '#/components/schemas/Timestamp'
+    SnapshotMetadata:
+      type: object
+      additionalProperties: false
+      required: [id, sandboxId, state, objectKey, createdAt]
+      properties:
+        id:
+          $ref: '#/components/schemas/SnapshotID'
+        sandboxId:
+          $ref: '#/components/schemas/SandboxID'
+        state:
+          type: string
+          enum: [requested, creating, available, failed, deleted]
+        objectKey:
+          type: string
+          maxLength: 1024
+          description: Opaque archive reference; not an S3 URL.
+        byteSize:
+          type: integer
+          minimum: 0
+        checksum:
+          type: string
+          maxLength: 128
+        createdAt:
+          $ref: '#/components/schemas/Timestamp'
+        expiresAt:
+          $ref: '#/components/schemas/Timestamp'
+    RestoreRequest:
+      type: object
+      additionalProperties: false
+      required: [snapshotId]
+      properties:
+        snapshotId:
+          $ref: '#/components/schemas/SnapshotID'
+    PageInfo:
+      type: object
+      additionalProperties: false
+      required: [hasMore]
+      properties:
+        nextCursor:
+          type: string
+          maxLength: 512
+        hasMore:
+          type: boolean
+    SandboxPage:
+      type: object
+      additionalProperties: false
+      required: [items, page]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Sandbox'
+        page:
+          $ref: '#/components/schemas/PageInfo'
+    SnapshotPage:
+      type: object
+      additionalProperties: false
+      required: [items, page]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SnapshotMetadata'
+        page:
+          $ref: '#/components/schemas/PageInfo'
+    ApiError:
+      type: object
+      additionalProperties: false
+      required: [code, message, requestId, details]
+      properties:
+        code:
+          type: string
+          minLength: 1
+          maxLength: 128
+          example: sandbox_not_running
+        message:
+          type: string
+          minLength: 1
+          maxLength: 2048
+        requestId:
+          $ref: '#/components/schemas/RequestID'
+        details:
+          type: object
+          additionalProperties: true
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          $ref: '#/components/schemas/ApiError'
+    HealthStatus:
+      type: object
+      additionalProperties: false
+      required: [status, version]
+      properties:
+        status:
+          type: string
+          enum: [ok, ready]
+        version:
+          type: string
+          minLength: 1
+          maxLength: 64
