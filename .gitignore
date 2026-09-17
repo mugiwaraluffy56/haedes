@@ -1,0 +1,27 @@
+# OS and editor files
+.DS_Store
+.idea/
+.vscode/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+
+# JavaScript / TypeScript
+node_modules/
+dist/
+coverage/
+.turbo/
+
+# Go
+bin/
+*.test
+
+# Rust
+target/
+
+# Local runtime and generated output
+*.log
+tmp/
+.cache/
