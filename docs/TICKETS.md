@@ -1,6 +1,6 @@
 # haedes Complete Implementation Tickets
 
-This board is the ticket-level execution breakdown of every task in `plan.md`. It is intentionally more granular than the 15 plan tasks: the plan remains the architecture and technical detail, while these tickets are owner-sized units of work.
+This board is the ticket-level execution breakdown of every task in `PLAN.md`. It is intentionally more granular than the 15 plan tasks: the plan remains the architecture and technical detail, while these tickets are owner-sized units of work.
 
 Each ticket has one owner, explicit blocking edges, and acceptance criteria. To claim a ticket, replace `unassigned` with a teammate’s name and change `blocked` or `ready-for-agent` to `in-progress` when its blockers are complete. Do not treat this board as complete until the traceability table at the end is complete.
 
