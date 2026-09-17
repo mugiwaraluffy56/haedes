@@ -21,6 +21,18 @@ The HTTP API is the canonical platform contract. MCP and the SDK are thin integr
 - [Implementation plan](docs/plan.md)
 - [Implementation tickets](docs/tickets.md)
 
+## Repository foundation
+
+The repository is a bounded multi-language monorepo:
+
+- TypeScript applications, packages, MCP, and examples use pnpm workspaces and Turborepo.
+- Go services are explicit members of the root `go.work`.
+- The Rust sandbox runtime is the root Cargo workspace member.
+- `services/control-plane` owns orchestration; `services/sandbox-runtime` owns process and `/workspace` behavior.
+- `integrations/mcp` is a thin adapter over the public API and does not call AWS directly.
+
+Run `make check` for the repository foundation checks. See [the repository architecture](docs/architecture/repository.md) and [contributing guide](CONTRIBUTING.md) for ownership rules.
+
 ## Hackathon demo
 
 One real coding agent requests a sandbox through MCP, fixes a failing authentication test inside the Fargate computer, snapshots the workspace, destroys the task, restores the snapshot into a new task, and reruns the tests successfully.

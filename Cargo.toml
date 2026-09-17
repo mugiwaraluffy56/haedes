@@ -1,0 +1,10 @@
+[workspace]
+resolver = "2"
+members = [
+  "services/sandbox-runtime",
+]
+
+[workspace.package]
+edition = "2021"
+license = "Apache-2.0"
+rust-version = "1.80"
