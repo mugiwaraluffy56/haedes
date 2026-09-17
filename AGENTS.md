@@ -25,8 +25,33 @@ haedes is an execution platform that gives AI agents temporary Linux computers o
 
 - Every task must be implemented on a new branch created from the latest `master`.
 - Use a descriptive branch name such as `feat/runtime-command-execution` or `fix/auth-error-mapping`.
-- Do not commit directly to `master` or push task changes directly to `master`.
+- Do not commit issue implementation changes directly to `master` or push them directly to `master`.
 - Every completed task must be submitted as a pull request for review before it is merged.
 - Pull requests must describe the change, link the relevant GitHub issue, and report the checks that were run.
+- Explicitly requested repository workflow or instruction updates may be committed and pushed directly to `master`.
+
+### After a pull request is merged
+
+Keep the checkout on the main branch and remove completed task branches:
+
+```sh
+git fetch origin --prune
+git switch master
+git pull --ff-only origin master
+git branch -d <merged-branch>
+git push origin --delete <merged-branch>
+git fetch origin --prune
+```
+
+Before starting another issue, always update `master` first and create a fresh branch from it:
+
+```sh
+git fetch origin --prune
+git switch master
+git pull --ff-only origin master
+git switch -c <descriptive-branch-name>
+```
+
+Never continue issue work on a merged branch or reuse an old task branch.
 
 The implementation board is in [`docs/TICKETS.md`](docs/TICKETS.md); each ticket links to its GitHub issue.
