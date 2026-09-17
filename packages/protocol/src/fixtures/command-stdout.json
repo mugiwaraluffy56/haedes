@@ -1,0 +1,8 @@
+{
+  "version": "runtime.v1",
+  "type": "stdout",
+  "commandId": "cmd_01HZX",
+  "sequence": 2,
+  "data": "hello\n",
+  "at": "2026-01-01T00:00:01Z"
+}

@@ -1,0 +1,12 @@
+{
+  "version": "runtime.v1",
+  "type": "completed",
+  "commandId": "cmd_01HZX",
+  "sequence": 4,
+  "result": {
+    "commandId": "cmd_01HZX",
+    "exitCode": 0,
+    "timedOut": false
+  },
+  "at": "2026-01-01T00:00:02Z"
+}

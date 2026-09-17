@@ -1,0 +1,349 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://haedes.dev/schemas/runtime.v1.schema.json",
+  "title": "haedes internal runtime protocol v1",
+  "description": "Authenticated control-plane/runtime messages. This schema is internal and is never exposed by the public load balancer.",
+  "oneOf": [
+    { "$ref": "#/$defs/ExecRequest" },
+    { "$ref": "#/$defs/CommandEvent" },
+    { "$ref": "#/$defs/FileOperationRequest" },
+    { "$ref": "#/$defs/FileOperationEvent" },
+    { "$ref": "#/$defs/SnapshotRequest" },
+    { "$ref": "#/$defs/SnapshotEvent" }
+  ],
+  "$defs": {
+    "Version": { "const": "runtime.v1" },
+    "RequestID": { "type": "string", "pattern": "^req_[A-Za-z0-9_-]+$" },
+    "CommandID": { "type": "string", "pattern": "^cmd_[A-Za-z0-9_-]+$" },
+    "SnapshotID": { "type": "string", "pattern": "^snp_[A-Za-z0-9_-]+$" },
+    "Timestamp": { "type": "string", "format": "date-time" },
+    "WorkspacePath": {
+      "type": "string",
+      "pattern": "^/workspace(?:/[^\\u0000]*)?$",
+      "maxLength": 4096
+    },
+    "Environment": {
+      "type": "object",
+      "maxProperties": 32,
+      "additionalProperties": { "type": "string", "maxLength": 4096 }
+    },
+    "CommandFields": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "type", "requestId", "command"],
+      "properties": {
+        "version": { "$ref": "#/$defs/Version" },
+        "type": { "const": "exec" },
+        "requestId": { "$ref": "#/$defs/RequestID" },
+        "command": { "type": "string", "minLength": 1, "maxLength": 16384 },
+        "cwd": { "$ref": "#/$defs/WorkspacePath" },
+        "environment": { "$ref": "#/$defs/Environment" },
+        "timeoutSeconds": { "type": "integer", "minimum": 1, "maximum": 900 }
+      }
+    },
+    "ExecRequest": { "$ref": "#/$defs/CommandFields" },
+    "CommandEventBase": {
+      "type": "object",
+      "required": ["version", "type", "commandId", "sequence", "at"],
+      "properties": {
+        "version": { "$ref": "#/$defs/Version" },
+        "type": { "enum": ["started", "stdout", "stderr", "completed", "failed"] },
+        "commandId": { "$ref": "#/$defs/CommandID" },
+        "sequence": { "type": "integer", "minimum": 1 },
+        "at": { "$ref": "#/$defs/Timestamp" }
+      }
+    },
+    "CommandStarted": {
+      "type": "object",
+      "allOf": [
+        { "$ref": "#/$defs/CommandEventBase" },
+        { "type": "object", "properties": { "type": { "const": "started" } } }
+      ],
+      "unevaluatedProperties": false
+    },
+    "CommandOutput": {
+      "type": "object",
+      "allOf": [
+        { "$ref": "#/$defs/CommandEventBase" },
+        {
+          "type": "object",
+          "required": ["data"],
+          "properties": {
+            "type": { "enum": ["stdout", "stderr"] },
+            "data": { "type": "string", "maxLength": 1048576 }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "CommandResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["commandId", "exitCode", "timedOut"],
+      "properties": {
+        "commandId": { "$ref": "#/$defs/CommandID" },
+        "exitCode": { "type": ["integer", "null"], "minimum": 0 },
+        "timedOut": { "type": "boolean" },
+        "signal": { "type": "string", "maxLength": 64 }
+      }
+    },
+    "CommandCompleted": {
+      "type": "object",
+      "allOf": [
+        { "$ref": "#/$defs/CommandEventBase" },
+        {
+          "type": "object",
+          "required": ["result"],
+          "properties": {
+            "type": { "const": "completed" },
+            "result": { "$ref": "#/$defs/CommandResult" }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "CommandFailed": {
+      "type": "object",
+      "allOf": [
+        { "$ref": "#/$defs/CommandEventBase" },
+        {
+          "type": "object",
+          "required": ["code", "message"],
+          "properties": {
+            "type": { "const": "failed" },
+            "code": { "type": "string", "minLength": 1, "maxLength": 128 },
+            "message": { "type": "string", "minLength": 1, "maxLength": 2048 }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "CommandEvent": {
+      "oneOf": [
+        { "$ref": "#/$defs/CommandStarted" },
+        { "$ref": "#/$defs/CommandOutput" },
+        { "$ref": "#/$defs/CommandCompleted" },
+        { "$ref": "#/$defs/CommandFailed" }
+      ]
+    },
+    "FilePathRequest": {
+      "type": "object",
+      "required": ["version", "type", "requestId", "path"],
+      "properties": {
+        "version": { "$ref": "#/$defs/Version" },
+        "type": { "enum": ["list_files", "read_file", "delete_file"] },
+        "requestId": { "$ref": "#/$defs/RequestID" },
+        "path": { "$ref": "#/$defs/WorkspacePath" }
+      }
+    },
+    "FileWriteRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "type", "requestId", "path", "content"],
+      "properties": {
+        "version": { "$ref": "#/$defs/Version" },
+        "type": { "const": "write_file" },
+        "requestId": { "$ref": "#/$defs/RequestID" },
+        "path": { "$ref": "#/$defs/WorkspacePath" },
+        "content": {
+          "type": "string",
+          "contentEncoding": "base64",
+          "contentMediaType": "application/octet-stream",
+          "maxLength": 13981016
+        }
+      }
+    },
+    "FileListRequest": {
+      "type": "object",
+      "allOf": [
+        { "$ref": "#/$defs/FilePathRequest" },
+        { "type": "object", "properties": { "type": { "const": "list_files" } } }
+      ],
+      "unevaluatedProperties": false
+    },
+    "FileReadRequest": {
+      "type": "object",
+      "allOf": [
+        { "$ref": "#/$defs/FilePathRequest" },
+        { "type": "object", "properties": { "type": { "const": "read_file" } } }
+      ],
+      "unevaluatedProperties": false
+    },
+    "FileDeleteRequest": {
+      "type": "object",
+      "allOf": [
+        { "$ref": "#/$defs/FilePathRequest" },
+        { "type": "object", "properties": { "type": { "const": "delete_file" } } }
+      ],
+      "unevaluatedProperties": false
+    },
+    "FileOperationRequest": {
+      "oneOf": [
+        { "$ref": "#/$defs/FileListRequest" },
+        { "$ref": "#/$defs/FileReadRequest" },
+        { "$ref": "#/$defs/FileDeleteRequest" },
+        { "$ref": "#/$defs/FileWriteRequest" }
+      ]
+    },
+    "FileEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "kind"],
+      "properties": {
+        "path": { "$ref": "#/$defs/WorkspacePath" },
+        "kind": { "enum": ["file", "directory", "symlink"] },
+        "byteSize": { "type": "integer", "minimum": 0, "maximum": 10485760 },
+        "modifiedAt": { "$ref": "#/$defs/Timestamp" }
+      }
+    },
+    "FileOperationEventBase": {
+      "type": "object",
+      "required": ["version", "type", "requestId", "at"],
+      "properties": {
+        "version": { "$ref": "#/$defs/Version" },
+        "type": { "enum": ["files_listed", "file_content", "file_written", "file_deleted"] },
+        "requestId": { "$ref": "#/$defs/RequestID" },
+        "at": { "$ref": "#/$defs/Timestamp" }
+      }
+    },
+    "FileListed": {
+      "type": "object",
+      "allOf": [
+        { "$ref": "#/$defs/FileOperationEventBase" },
+        {
+          "type": "object",
+          "required": ["path", "entries"],
+          "properties": {
+            "type": { "const": "files_listed" },
+            "path": { "$ref": "#/$defs/WorkspacePath" },
+            "entries": {
+              "type": "array",
+              "maxItems": 10000,
+              "items": { "$ref": "#/$defs/FileEntry" }
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "FileContent": {
+      "type": "object",
+      "allOf": [
+        { "$ref": "#/$defs/FileOperationEventBase" },
+        {
+          "type": "object",
+          "required": ["path", "content"],
+          "properties": {
+            "type": { "const": "file_content" },
+            "path": { "$ref": "#/$defs/WorkspacePath" },
+            "content": {
+              "type": "string",
+              "contentEncoding": "base64",
+              "contentMediaType": "application/octet-stream",
+              "maxLength": 13981016
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "FileWritten": {
+      "type": "object",
+      "allOf": [
+        { "$ref": "#/$defs/FileOperationEventBase" },
+        {
+          "type": "object",
+          "required": ["entry"],
+          "properties": {
+            "type": { "const": "file_written" },
+            "entry": { "$ref": "#/$defs/FileEntry" }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "FileDeleted": {
+      "type": "object",
+      "allOf": [
+        { "$ref": "#/$defs/FileOperationEventBase" },
+        {
+          "type": "object",
+          "required": ["path"],
+          "properties": {
+            "type": { "const": "file_deleted" },
+            "path": { "$ref": "#/$defs/WorkspacePath" }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "FileOperationEvent": {
+      "oneOf": [
+        { "$ref": "#/$defs/FileListed" },
+        { "$ref": "#/$defs/FileContent" },
+        { "$ref": "#/$defs/FileWritten" },
+        { "$ref": "#/$defs/FileDeleted" }
+      ]
+    },
+    "SnapshotRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "type", "requestId", "snapshotId"],
+      "properties": {
+        "version": { "$ref": "#/$defs/Version" },
+        "type": { "enum": ["snapshot_export", "snapshot_restore"] },
+        "requestId": { "$ref": "#/$defs/RequestID" },
+        "snapshotId": { "$ref": "#/$defs/SnapshotID" },
+        "workspacePath": { "$ref": "#/$defs/WorkspacePath" }
+      }
+    },
+    "SnapshotEventBase": {
+      "type": "object",
+      "required": ["version", "type", "requestId", "snapshotId", "at"],
+      "properties": {
+        "version": { "$ref": "#/$defs/Version" },
+        "type": { "enum": ["snapshot_exported", "snapshot_restored"] },
+        "requestId": { "$ref": "#/$defs/RequestID" },
+        "snapshotId": { "$ref": "#/$defs/SnapshotID" },
+        "at": { "$ref": "#/$defs/Timestamp" }
+      }
+    },
+    "SnapshotExported": {
+      "type": "object",
+      "allOf": [
+        { "$ref": "#/$defs/SnapshotEventBase" },
+        {
+          "type": "object",
+          "required": ["byteSize", "checksum"],
+          "properties": {
+            "type": { "const": "snapshot_exported" },
+            "byteSize": { "type": "integer", "minimum": 0 },
+            "checksum": { "type": "string", "minLength": 1, "maxLength": 128 }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "SnapshotRestored": {
+      "type": "object",
+      "allOf": [
+        { "$ref": "#/$defs/SnapshotEventBase" },
+        {
+          "type": "object",
+          "required": ["restoredEntries"],
+          "properties": {
+            "type": { "const": "snapshot_restored" },
+            "restoredEntries": { "type": "integer", "minimum": 0 }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "SnapshotEvent": {
+      "oneOf": [
+        { "$ref": "#/$defs/SnapshotExported" },
+        { "$ref": "#/$defs/SnapshotRestored" }
+      ]
+    }
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "version": "runtime.v1",
+  "type": "file_written",
+  "requestId": "req_01HZB",
+  "entry": { "path": "/workspace/notes.txt", "kind": "file", "byteSize": 6 },
+  "at": "2026-01-01T00:00:05Z"
+}
