@@ -25,4 +25,4 @@ Focused checks are also available as `pnpm lint`, `pnpm typecheck`, `pnpm test`,
 
 ## Changes
 
-Create a branch from the latest `master`. Keep commits focused, update the relevant source-of-truth documentation, and open a pull request before merging. Pull requests should describe the change, link the relevant issue, and report the checks that were run.
+Create a branch from the latest `main`. Keep commits focused, update the relevant source-of-truth documentation, and open a pull request before merging. Pull requests should describe the change, link the relevant GitHub issue, and report the checks that were run.
