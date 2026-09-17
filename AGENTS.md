@@ -29,4 +29,4 @@ haedes is an execution platform that gives AI agents temporary Linux computers o
 - Every completed task must be submitted as a pull request for review before it is merged.
 - Pull requests must describe the change, link the relevant GitHub issue, and report the checks that were run.
 
-The implementation board is in [`docs/tickets.md`](docs/tickets.md); each ticket links to its GitHub issue.
+The implementation board is in [`docs/TICKETS.md`](docs/TICKETS.md); each ticket links to its GitHub issue.

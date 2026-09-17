@@ -8,7 +8,7 @@
 
 **Tech Stack:** TypeScript, Next.js, React, pnpm workspaces, Turborepo, Go, chi, AWS SDK for Go v2, Rust, Tokio, Axum, serde, Docker, Amazon ECS with AWS Fargate, Amazon ECR, Amazon S3, Amazon DynamoDB, Amazon CloudWatch, Amazon VPC, Terraform, GitHub Actions, Vitest, Playwright, Go test, Rust test, and k6.
 
-**Spec:** `docs/prd.md`, with hackathon constraints from `docs/hackathon.md` and planning rules from `docs/skill.md`.
+**Spec:** `docs/PRD.md`, with hackathon constraints from `docs/HACKATHON.md` and planning rules from `docs/SKILL.md`.
 
 ## Global Constraints
 
