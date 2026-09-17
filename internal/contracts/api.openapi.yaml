@@ -862,8 +862,10 @@ components:
           type: string
           maxLength: 16384
         exitCode:
-          type: [integer, 'null']
-          minimum: 0
+          oneOf:
+            - type: integer
+              minimum: 0
+            - type: 'null'
         startedAt:
           $ref: '#/components/schemas/Timestamp'
         finishedAt:

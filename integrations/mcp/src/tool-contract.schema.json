@@ -1,0 +1,141 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://haedes.dev/schemas/mcp-tool-contract.schema.json",
+  "title": "haedes MCP tool contract",
+  "description": "MCP tool inputs and outputs reference public API schemas instead of defining duplicate domain models.",
+  "tools": [
+    {
+      "name": "create_sandbox",
+      "description": "Create a temporary sandbox.",
+      "inputSchema": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/schemas/SandboxCreateRequest" },
+      "resultSchema": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/schemas/Sandbox" }
+    },
+    {
+      "name": "execute_command",
+      "description": "Execute a bounded command in a running sandbox.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["sandboxId", "request"],
+        "properties": {
+          "sandboxId": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/schemas/SandboxID" },
+          "request": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/schemas/CommandRequest" }
+        }
+      },
+      "resultSchema": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/schemas/CommandResult" }
+    },
+    {
+      "name": "stream_command",
+      "description": "Resume ordered command events.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["sandboxId", "commandId"],
+        "properties": {
+          "sandboxId": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/schemas/SandboxID" },
+          "commandId": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/schemas/CommandID" },
+          "lastEventId": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/parameters/LastEventID/schema" }
+        }
+      },
+      "resultSchema": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/schemas/CommandEvent" }
+    },
+    {
+      "name": "list_files",
+      "description": "List entries below a workspace path.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["sandboxId"],
+        "properties": {
+          "sandboxId": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/schemas/SandboxID" },
+          "path": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/schemas/WorkspacePath" }
+        }
+      },
+      "resultSchema": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/schemas/FileListResponse" }
+    },
+    {
+      "name": "read_file",
+      "description": "Read a workspace file.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["sandboxId", "path"],
+        "properties": {
+          "sandboxId": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/schemas/SandboxID" },
+          "path": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/schemas/WorkspaceFilePath" }
+        }
+      },
+      "resultSchema": { "type": "string", "contentEncoding": "base64" }
+    },
+    {
+      "name": "write_file",
+      "description": "Write bounded content to a workspace file.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["sandboxId", "path", "content"],
+        "properties": {
+          "sandboxId": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/schemas/SandboxID" },
+          "path": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/schemas/WorkspaceFilePath" },
+          "content": { "type": "string", "contentEncoding": "base64", "maxLength": 13981016 }
+        }
+      },
+      "resultSchema": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/schemas/FileEntry" }
+    },
+    {
+      "name": "delete_file",
+      "description": "Delete a workspace file or empty directory.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["sandboxId", "path"],
+        "properties": {
+          "sandboxId": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/schemas/SandboxID" },
+          "path": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/schemas/WorkspaceFilePath" }
+        }
+      },
+      "resultSchema": { "type": "null" }
+    },
+    {
+      "name": "create_snapshot",
+      "description": "Create a workspace snapshot.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["sandboxId"],
+        "properties": {
+          "sandboxId": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/schemas/SandboxID" },
+          "request": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/schemas/SnapshotCreateRequest" }
+        }
+      },
+      "resultSchema": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/schemas/SnapshotMetadata" }
+    },
+    {
+      "name": "restore_snapshot",
+      "description": "Restore a snapshot into a stopped sandbox.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["sandboxId", "request"],
+        "properties": {
+          "sandboxId": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/schemas/SandboxID" },
+          "request": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/schemas/RestoreRequest" }
+        }
+      },
+      "resultSchema": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/schemas/Sandbox" }
+    },
+    {
+      "name": "destroy_sandbox",
+      "description": "Destroy a sandbox.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["sandboxId"],
+        "properties": {
+          "sandboxId": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/schemas/SandboxID" }
+        }
+      },
+      "resultSchema": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/schemas/Sandbox" }
+    }
+  ]
+}

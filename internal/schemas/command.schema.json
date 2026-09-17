@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://haedes.dev/schemas/persisted-command.schema.json",
+  "title": "Persisted command",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "sandboxId", "command", "state", "exitCode", "startedAt", "timedOut"],
+  "properties": {
+    "id": { "$ref": "#/$defs/CommandID" },
+    "sandboxId": { "$ref": "#/$defs/SandboxID" },
+    "command": { "type": "string", "minLength": 1, "maxLength": 16384 },
+    "state": { "enum": ["requested", "running", "completed", "failed"] },
+    "exitCode": { "type": ["integer", "null"], "minimum": 0 },
+    "startedAt": { "$ref": "#/$defs/Timestamp" },
+    "finishedAt": { "$ref": "#/$defs/Timestamp" },
+    "timedOut": { "type": "boolean" },
+    "signal": { "type": "string", "maxLength": 64 }
+  },
+  "$defs": {
+    "SandboxID": { "type": "string", "pattern": "^sbx_[A-Za-z0-9_-]+$" },
+    "CommandID": { "type": "string", "pattern": "^cmd_[A-Za-z0-9_-]+$" },
+    "Timestamp": { "type": "string", "format": "date-time" }
+  }
+}

@@ -6,6 +6,7 @@ build:
 check:
 	./scripts/check-repo.sh
 	./scripts/generate-contracts.sh --check
+	pnpm validate:contracts
 	pnpm lint
 	pnpm test
 	pnpm typecheck

@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://haedes.dev/schemas/persisted-snapshot.schema.json",
+  "title": "Persisted snapshot",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "sandboxId", "state", "objectKey", "createdAt"],
+  "properties": {
+    "id": { "$ref": "#/$defs/SnapshotID" },
+    "sandboxId": { "$ref": "#/$defs/SandboxID" },
+    "state": { "enum": ["requested", "creating", "available", "failed", "deleted"] },
+    "objectKey": { "type": "string", "minLength": 1, "maxLength": 1024 },
+    "byteSize": { "type": "integer", "minimum": 0 },
+    "checksum": { "type": "string", "maxLength": 128 },
+    "createdAt": { "$ref": "#/$defs/Timestamp" },
+    "expiresAt": { "$ref": "#/$defs/Timestamp" }
+  },
+  "$defs": {
+    "SandboxID": { "type": "string", "pattern": "^sbx_[A-Za-z0-9_-]+$" },
+    "SnapshotID": { "type": "string", "pattern": "^snp_[A-Za-z0-9_-]+$" },
+    "Timestamp": { "type": "string", "format": "date-time" }
+  }
+}

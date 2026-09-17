@@ -1,0 +1,18 @@
+{
+  "id": "sbx_01HZY",
+  "ownerId": "owner_01",
+  "state": "running",
+  "config": {
+    "image": "haedes/default:latest",
+    "cpuMillis": 512,
+    "memoryMiB": 1024,
+    "storageGiB": 20,
+    "maxLifetimeSeconds": 3600,
+    "defaultCommandTimeoutSeconds": 30,
+    "environment": {}
+  },
+  "createdAt": "2026-01-01T00:00:00Z",
+  "expiresAt": "2026-01-01T01:00:00Z",
+  "lastActivityAt": "2026-01-01T00:05:00Z",
+  "snapshotIds": []
+}

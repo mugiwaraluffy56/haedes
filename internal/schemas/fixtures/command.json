@@ -1,0 +1,10 @@
+{
+  "id": "cmd_01HZX",
+  "sandboxId": "sbx_01HZY",
+  "command": "printf hello",
+  "state": "completed",
+  "exitCode": 0,
+  "startedAt": "2026-01-01T00:00:00Z",
+  "finishedAt": "2026-01-01T00:00:01Z",
+  "timedOut": false
+}

@@ -17,4 +17,4 @@ The canonical public contract is [`internal/contracts/api.openapi.yaml`](../../i
 
 Non-success responses use typed HTTP errors. In particular, `401` means authentication failed, `404` means the resource is absent or not visible to the caller, `409` means a lifecycle or idempotency conflict, `408` means a command exceeded its timeout, and `413` means a configured request limit was exceeded.
 
-Run `make generate` to verify generated consumers match this source once the generated TypeScript output is added by the shared-types ticket.
+Run `make generate` to verify the generated TypeScript and Go consumers match this source. Run `pnpm validate:contracts` to validate the public, runtime, persisted, and MCP boundaries.
