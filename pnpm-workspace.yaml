@@ -1,0 +1,8 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+  - "integrations/mcp"
+  - "integrations/examples/*"
+
+onlyBuiltDependencies:
+  - esbuild

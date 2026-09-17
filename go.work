@@ -1,0 +1,7 @@
+go 1.23.0
+
+use (
+	./services/control-plane
+	./services/lifecycle-manager
+	./services/snapshot-service
+)

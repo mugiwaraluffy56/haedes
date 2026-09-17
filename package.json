@@ -1,0 +1,24 @@
+{
+  "name": "haedes",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Temporary AWS computers for AI agents",
+  "packageManager": "pnpm@9.15.5",
+  "engines": {
+    "node": ">=20.18.0",
+    "pnpm": ">=9.15.5 <10"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev --parallel",
+    "generate": "./scripts/generate-contracts.sh",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "check:repo": "./scripts/check-repo.sh",
+    "check": "pnpm check:repo && pnpm lint && pnpm typecheck && pnpm test"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.3"
+  }
+}
