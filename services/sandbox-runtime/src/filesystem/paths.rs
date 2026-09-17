@@ -70,6 +70,29 @@ impl PathGuard {
     }
 
     pub fn resolve(&self, user_path: &str) -> Result<PathBuf, PathError> {
+        let candidate = self.candidate(user_path)?;
+        self.resolve_candidate(&candidate)
+    }
+
+    pub fn resolve_for_operation(&self, user_path: &str) -> Result<PathBuf, PathError> {
+        let candidate = self.candidate(user_path)?;
+        self.validate_candidate(&candidate)?;
+        Ok(candidate)
+    }
+
+    pub fn virtual_path(&self, path: &Path) -> Result<String, PathError> {
+        let relative = path
+            .strip_prefix(&self.root)
+            .map_err(|_| PathError::OutsideWorkspace)?;
+        let relative = relative.to_str().ok_or(PathError::InvalidComponent)?;
+        if relative.is_empty() {
+            Ok(VIRTUAL_WORKSPACE.to_owned())
+        } else {
+            Ok(format!("{VIRTUAL_WORKSPACE}/{relative}"))
+        }
+    }
+
+    fn candidate(&self, user_path: &str) -> Result<PathBuf, PathError> {
         if user_path.as_bytes().contains(&0) {
             return Err(PathError::NulByte);
         }
@@ -78,8 +101,7 @@ impl PathGuard {
         }
 
         let relative = self.relative_path(user_path)?;
-        let candidate = self.root.join(relative);
-        self.resolve_candidate(&candidate)
+        Ok(self.root.join(relative))
     }
 
     fn relative_path(&self, user_path: &str) -> Result<PathBuf, PathError> {
@@ -92,9 +114,11 @@ impl PathGuard {
             path
         };
 
+        let mut normalized = PathBuf::new();
         for component in relative.components() {
             match component {
-                Component::CurDir | Component::Normal(_) => {}
+                Component::CurDir => {}
+                Component::Normal(value) => normalized.push(value),
                 Component::ParentDir => return Err(PathError::Traversal),
                 Component::RootDir | Component::Prefix(_) => {
                     return Err(PathError::InvalidComponent)
@@ -102,7 +126,7 @@ impl PathGuard {
             }
         }
 
-        Ok(relative.to_path_buf())
+        Ok(normalized)
     }
 
     fn resolve_candidate(&self, candidate: &Path) -> Result<PathBuf, PathError> {
@@ -115,13 +139,41 @@ impl PathGuard {
                     Err(PathError::UnsafeSymlink)
                 }
             }
+            Ok(_) => fs::canonicalize(candidate)
+                .map_err(|error| PathError::Filesystem(error.to_string()))
+                .and_then(|resolved| self.ensure_inside(&resolved)),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                self.resolve_missing_leaf(candidate)
+            }
+            Err(error) => Err(PathError::Filesystem(error.to_string())),
+        }
+    }
+
+    fn validate_candidate(&self, candidate: &Path) -> Result<(), PathError> {
+        match fs::symlink_metadata(candidate) {
+            Ok(metadata) if metadata.file_type().is_symlink() => {
+                let resolved = fs::canonicalize(candidate).map_err(|_| PathError::UnsafeSymlink)?;
+                if resolved.starts_with(&self.root) {
+                    Ok(())
+                } else {
+                    Err(PathError::UnsafeSymlink)
+                }
+            }
             Ok(_) => {
                 let resolved = fs::canonicalize(candidate)
                     .map_err(|error| PathError::Filesystem(error.to_string()))?;
-                self.ensure_inside(&resolved)
+                self.ensure_inside(&resolved).map(|_| ())
             }
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                self.resolve_missing_leaf(candidate)
+                let parent = candidate.parent().ok_or(PathError::MissingAncestor)?;
+                let parent = fs::canonicalize(parent).map_err(|error| {
+                    if error.kind() == std::io::ErrorKind::NotFound {
+                        PathError::MissingAncestor
+                    } else {
+                        PathError::Filesystem(error.to_string())
+                    }
+                })?;
+                self.ensure_inside(&parent).map(|_| ())
             }
             Err(error) => Err(PathError::Filesystem(error.to_string())),
         }
