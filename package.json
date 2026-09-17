@@ -11,12 +11,14 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev --parallel",
-    "generate": "./scripts/generate-contracts.sh",
+    "format": "cargo fmt --all",
+    "format:check": "cargo fmt --all -- --check",
+    "generate": "./scripts/generate-contracts.sh --check",
     "lint": "turbo run lint",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
     "check:repo": "./scripts/check-repo.sh",
-    "check": "pnpm check:repo && pnpm lint && pnpm typecheck && pnpm test"
+    "check": "pnpm check:repo && pnpm generate && pnpm lint && pnpm typecheck && pnpm test"
   },
   "devDependencies": {
     "turbo": "^2.3.3"
