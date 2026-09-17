@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://haedes.dev/schemas/persisted-sandbox.schema.json",
+  "title": "Persisted sandbox",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "ownerId", "state", "config", "createdAt", "expiresAt", "lastActivityAt", "snapshotIds"],
+  "properties": {
+    "id": { "$ref": "#/$defs/SandboxID" },
+    "ownerId": { "type": "string", "minLength": 1, "maxLength": 256 },
+    "state": { "$ref": "#/$defs/SandboxState" },
+    "config": { "$ref": "#/$defs/SandboxConfig" },
+    "repository": { "$ref": "#/$defs/RepositoryConfig" },
+    "createdAt": { "$ref": "#/$defs/Timestamp" },
+    "expiresAt": { "$ref": "#/$defs/Timestamp" },
+    "lastActivityAt": { "$ref": "#/$defs/Timestamp" },
+    "currentCommandId": { "$ref": "#/$defs/CommandID" },
+    "snapshotIds": { "type": "array", "maxItems": 100, "items": { "$ref": "#/$defs/SnapshotID" } }
+  },
+  "$defs": {
+    "SandboxState": {
+      "type": "string",
+      "enum": ["requested", "provisioning", "starting", "running", "snapshotting", "stopping", "stopped", "failed", "destroyed"]
+    },
+    "SandboxID": { "type": "string", "pattern": "^sbx_[A-Za-z0-9_-]+$" },
+    "CommandID": { "type": "string", "pattern": "^cmd_[A-Za-z0-9_-]+$" },
+    "SnapshotID": { "type": "string", "pattern": "^snp_[A-Za-z0-9_-]+$" },
+    "Timestamp": { "type": "string", "format": "date-time" },
+    "WorkspacePath": { "type": "string", "pattern": "^/workspace(?:/[^\\u0000]*)?$", "maxLength": 4096 },
+    "RepositoryConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "url", "path"],
+      "properties": {
+        "provider": { "const": "github" },
+        "url": { "type": "string", "format": "uri", "maxLength": 2048 },
+        "ref": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "path": { "$ref": "#/$defs/WorkspacePath" }
+      }
+    },
+    "SandboxConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["image", "cpuMillis", "memoryMiB", "storageGiB", "maxLifetimeSeconds", "defaultCommandTimeoutSeconds", "environment"],
+      "properties": {
+        "image": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "cpuMillis": { "type": "integer", "minimum": 128, "maximum": 8192 },
+        "memoryMiB": { "type": "integer", "minimum": 256, "maximum": 32768 },
+        "storageGiB": { "type": "integer", "minimum": 1, "maximum": 200 },
+        "maxLifetimeSeconds": { "type": "integer", "minimum": 60, "maximum": 86400 },
+        "defaultCommandTimeoutSeconds": { "type": "integer", "minimum": 1, "maximum": 900 },
+        "environment": { "type": "object", "maxProperties": 32, "additionalProperties": { "type": "string", "maxLength": 4096 } },
+        "repository": { "$ref": "#/$defs/RepositoryConfig" },
+        "snapshotId": { "$ref": "#/$defs/SnapshotID" }
+      }
+    }
+  }
+}

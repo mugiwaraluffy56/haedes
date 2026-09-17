@@ -19,7 +19,14 @@ required_files=(
   SECURITY.md
   internal/contracts/api.openapi.yaml
   internal/contracts/lifecycle.md
+  internal/schemas/sandbox.schema.json
+  internal/schemas/command.schema.json
+  internal/schemas/snapshot.schema.json
   packages/protocol/src/runtime-v1.schema.json
+  packages/api-types/src/generated.ts
+  packages/api-types/src/index.ts
+  services/control-plane/internal/contracts/generated.go
+  integrations/mcp/src/tool-contract.schema.json
   docs/architecture/repository.md
   docs/architecture/ownership.md
   docs/architecture/state-machine.md
@@ -27,6 +34,8 @@ required_files=(
   docs/api/runtime-protocol.md
   docs/decisions/0001-monorepo-boundaries.md
   scripts/generate-contracts.sh
+  scripts/generate-go-models.mjs
+  scripts/validate-contracts.ts
 )
 
 for file in "${required_files[@]}"; do
@@ -82,7 +91,7 @@ required_dirs=(
   integrations/github integrations/mcp integrations/agents integrations/examples
   infrastructure/terraform infrastructure/aws infrastructure/docker infrastructure/environments
   images/sandbox-base images/sandbox-dev
-  internal/contracts internal/schemas internal/fixtures
+  internal/contracts internal/schemas internal/schemas/fixtures internal/fixtures
   tests/integration tests/e2e tests/security tests/load
   docs/architecture docs/api docs/sandbox docs/aws docs/security docs/decisions
   examples/basic-agent examples/coding-agent examples/github-fixer
