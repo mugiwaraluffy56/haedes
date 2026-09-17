@@ -21,4 +21,12 @@ haedes is an execution platform that gives AI agents temporary Linux computers o
 - Keep the hackathon scope narrow: one MCP path, one real coding-agent demo, one AWS region, and one default image.
 - Run the repository checks relevant to every changed boundary before opening a pull request.
 
+## Git workflow
+
+- Every task must be implemented on a new branch created from the latest `master`.
+- Use a descriptive branch name such as `feat/runtime-command-execution` or `fix/auth-error-mapping`.
+- Do not commit directly to `master` or push task changes directly to `master`.
+- Every completed task must be submitted as a pull request for review before it is merged.
+- Pull requests must describe the change, link the relevant GitHub issue, and report the checks that were run.
+
 The implementation board is in [`docs/tickets.md`](docs/tickets.md); each ticket links to its GitHub issue.
