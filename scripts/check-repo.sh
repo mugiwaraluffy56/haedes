@@ -17,8 +17,10 @@ required_files=(
   Cargo.lock
   CONTRIBUTING.md
   SECURITY.md
+  internal/contracts/api.openapi.yaml
   docs/architecture/repository.md
   docs/architecture/ownership.md
+  docs/api/public-api.md
   docs/decisions/0001-monorepo-boundaries.md
   scripts/generate-contracts.sh
 )
