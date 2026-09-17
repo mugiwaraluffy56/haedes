@@ -11,3 +11,5 @@ The process requires `HAEDES_RUNTIME_TOKEN` and `HAEDES_SANDBOX_ID`. Optional se
 Filesystem paths are resolved through `PathGuard`. Relative paths and `/workspace/...` paths map beneath the configured workspace root. Traversal, encoded path escapes, NUL bytes, missing ancestors, outside-root paths, and symlinks that resolve outside the workspace are rejected with typed path errors.
 
 `FileService` provides bounded read and write operations, deterministic directory listings, and file or empty-directory deletion. It reports regular files, directories, and symlinks separately. Callers can supply a runtime-specific limit; the default limit is 10 MiB.
+
+`CommandRunner` executes bounded commands through `sh -lc` with a workspace working directory, an explicit environment, isolated process groups, separate stdout and stderr limits, and a timeout capped at 15 minutes. A timeout returns a result with `timed_out: true`; output overflow returns the typed `command_output_limit` error.
