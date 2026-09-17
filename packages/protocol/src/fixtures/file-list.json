@@ -1,0 +1,16 @@
+{
+  "version": "runtime.v1",
+  "type": "files_listed",
+  "requestId": "req_01HZZ",
+  "path": "/workspace",
+  "entries": [
+    { "path": "/workspace/src", "kind": "directory" },
+    {
+      "path": "/workspace/README.md",
+      "kind": "file",
+      "byteSize": 42,
+      "modifiedAt": "2026-01-01T00:00:00Z"
+    }
+  ],
+  "at": "2026-01-01T00:00:03Z"
+}

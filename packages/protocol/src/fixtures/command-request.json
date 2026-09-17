@@ -1,0 +1,9 @@
+{
+  "version": "runtime.v1",
+  "type": "exec",
+  "requestId": "req_01HZX",
+  "command": "printf hello",
+  "cwd": "/workspace",
+  "environment": { "HAEDES_TEST": "1" },
+  "timeoutSeconds": 30
+}

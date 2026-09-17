@@ -1,0 +1,6 @@
+{
+  "version": "runtime.v1",
+  "type": "read_file",
+  "requestId": "req_01HZZ",
+  "path": "/workspace/README.md"
+}

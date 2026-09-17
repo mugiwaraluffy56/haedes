@@ -1,0 +1,8 @@
+{
+  "version": "runtime.v1",
+  "type": "snapshot_restored",
+  "requestId": "req_01HZE",
+  "snapshotId": "snp_01HZW",
+  "restoredEntries": 12,
+  "at": "2026-01-01T00:00:08Z"
+}

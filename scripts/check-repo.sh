@@ -18,9 +18,13 @@ required_files=(
   CONTRIBUTING.md
   SECURITY.md
   internal/contracts/api.openapi.yaml
+  internal/contracts/lifecycle.md
+  packages/protocol/src/runtime-v1.schema.json
   docs/architecture/repository.md
   docs/architecture/ownership.md
+  docs/architecture/state-machine.md
   docs/api/public-api.md
+  docs/api/runtime-protocol.md
   docs/decisions/0001-monorepo-boundaries.md
   scripts/generate-contracts.sh
 )
@@ -73,7 +77,7 @@ done
 
 required_dirs=(
   apps/web apps/dashboard
-  packages/sdk-typescript packages/api-types packages/shared-config packages/protocol
+  packages/sdk-typescript packages/api-types packages/shared-config packages/protocol packages/protocol/src/fixtures
   services/control-plane services/lifecycle-manager services/snapshot-service services/sandbox-runtime
   integrations/github integrations/mcp integrations/agents integrations/examples
   infrastructure/terraform infrastructure/aws infrastructure/docker infrastructure/environments
