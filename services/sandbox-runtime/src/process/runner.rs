@@ -1,4 +1,12 @@
-use std::{collections::HashMap, process::Stdio, sync::Arc, time::Duration};
+use std::{
+    collections::HashMap,
+    process::Stdio,
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc, Mutex,
+    },
+    time::Duration,
+};
 
 use nix::{
     sys::signal::{killpg, Signal},
@@ -11,7 +19,10 @@ use tokio::{
     time::sleep,
 };
 
-use crate::filesystem::{PathError, PathGuard};
+use crate::{
+    filesystem::{PathError, PathGuard},
+    streaming::{CommandEventKind, CommandResultSummary, EventBus, EventError, EventReceiver},
+};
 
 pub const DEFAULT_MAX_COMMAND_BYTES: usize = 16 * 1024;
 pub const DEFAULT_MAX_OUTPUT_BYTES: usize = 1024 * 1024;
@@ -27,6 +38,24 @@ pub struct CommandRunner {
     max_command_bytes: usize,
     max_output_bytes: usize,
     max_timeout: Duration,
+    next_id: Arc<AtomicU64>,
+    commands: Arc<Mutex<HashMap<String, EventBus>>>,
+}
+
+#[derive(Clone)]
+pub struct CommandHandle {
+    id: String,
+    events: EventBus,
+}
+
+impl CommandHandle {
+    pub fn id(&self) -> &str {
+        &self.id
+    }
+
+    pub fn events(&self, after_sequence: u64) -> Result<EventReceiver, EventError> {
+        self.events.subscribe(after_sequence)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -48,6 +77,8 @@ pub struct CommandResult {
 
 #[derive(Debug, Error)]
 pub enum CommandError {
+    #[error(transparent)]
+    Events(#[from] EventError),
     #[error(transparent)]
     Path(#[from] PathError),
     #[error("command must not be empty")]
@@ -78,6 +109,7 @@ impl CommandError {
     pub fn code(&self) -> &'static str {
         match self {
             Self::Path(error) => error.code(),
+            Self::Events(_) => "runtime_unavailable",
             Self::OutputTooLarge { .. } => "command_output_limit",
             Self::InvalidTimeout | Self::TimeoutTooLarge { .. } => "command_timeout",
             Self::EmptyCommand
@@ -99,6 +131,8 @@ impl CommandRunner {
             max_command_bytes: DEFAULT_MAX_COMMAND_BYTES,
             max_output_bytes: DEFAULT_MAX_OUTPUT_BYTES,
             max_timeout: DEFAULT_MAX_TIMEOUT,
+            next_id: Arc::new(AtomicU64::new(1)),
+            commands: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -113,10 +147,68 @@ impl CommandRunner {
             max_command_bytes,
             max_output_bytes,
             max_timeout,
+            next_id: Arc::new(AtomicU64::new(1)),
+            commands: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
     pub async fn run(&self, request: CommandRequest) -> Result<CommandResult, CommandError> {
+        self.execute(request, None).await
+    }
+
+    pub fn start(&self, request: CommandRequest) -> Result<CommandHandle, CommandError> {
+        self.validate_request(&request)?;
+        let id = format!("cmd_{}", self.next_id.fetch_add(1, Ordering::Relaxed));
+        let events = EventBus::new(id.clone());
+        self.commands
+            .lock()
+            .expect("command registry lock poisoned")
+            .insert(id.clone(), events.clone());
+
+        let runner = self.clone();
+        let event_bus = events.clone();
+        tokio::spawn(async move {
+            let _ = event_bus.publish(CommandEventKind::Started);
+            match runner.execute(request, Some(event_bus.clone())).await {
+                Ok(result) => {
+                    let _ = event_bus.publish(CommandEventKind::Completed(CommandResultSummary {
+                        exit_code: result.exit_code,
+                        signal: result.signal,
+                        timed_out: result.timed_out,
+                    }));
+                }
+                Err(error) => {
+                    let _ = event_bus.publish(CommandEventKind::Failed {
+                        code: error.code().to_owned(),
+                        message: error.to_string(),
+                    });
+                }
+            }
+        });
+
+        Ok(CommandHandle { id, events })
+    }
+
+    pub fn events(
+        &self,
+        command_id: &str,
+        after_sequence: u64,
+    ) -> Result<EventReceiver, CommandError> {
+        let events = self
+            .commands
+            .lock()
+            .expect("command registry lock poisoned")
+            .get(command_id)
+            .cloned()
+            .ok_or_else(|| CommandError::Process("command was not found".to_owned()))?;
+        Ok(events.subscribe(after_sequence)?)
+    }
+
+    async fn execute(
+        &self,
+        request: CommandRequest,
+        events: Option<EventBus>,
+    ) -> Result<CommandResult, CommandError> {
         self.validate_request(&request)?;
         let cwd = self.resolve_cwd(request.cwd.as_deref()).await?;
 
@@ -151,8 +243,14 @@ impl CommandRunner {
             .take()
             .ok_or_else(|| CommandError::Spawn("command stderr was not piped".to_owned()))?;
 
-        let mut stdout_task = tokio::spawn(read_stream(stdout, self.max_output_bytes));
-        let mut stderr_task = tokio::spawn(read_stream(stderr, self.max_output_bytes));
+        let mut stdout_task = tokio::spawn(read_stream(
+            stdout,
+            self.max_output_bytes,
+            events.clone(),
+            true,
+        ));
+        let mut stderr_task =
+            tokio::spawn(read_stream(stderr, self.max_output_bytes, events, false));
         let mut wait_task = tokio::spawn(async move { child.wait().await });
         let mut timeout = Box::pin(sleep(request.timeout));
         let mut stdout_done = false;
@@ -270,20 +368,42 @@ impl CommandRunner {
 enum StreamError {
     OutputLimit,
     Io(String),
+    Event(String),
 }
 
-async fn read_stream<R>(stream: R, limit: usize) -> Result<Vec<u8>, StreamError>
+async fn read_stream<R>(
+    mut stream: R,
+    limit: usize,
+    events: Option<EventBus>,
+    stdout: bool,
+) -> Result<Vec<u8>, StreamError>
 where
     R: AsyncRead + Unpin,
 {
     let mut output = Vec::new();
-    stream
-        .take(limit as u64 + 1)
-        .read_to_end(&mut output)
-        .await
-        .map_err(|error| StreamError::Io(error.to_string()))?;
-    if output.len() > limit {
-        return Err(StreamError::OutputLimit);
+    let mut buffer = vec![0; 8192];
+    loop {
+        let size = stream
+            .read(&mut buffer)
+            .await
+            .map_err(|error| StreamError::Io(error.to_string()))?;
+        if size == 0 {
+            break;
+        }
+        if output.len().saturating_add(size) > limit {
+            return Err(StreamError::OutputLimit);
+        }
+        output.extend_from_slice(&buffer[..size]);
+        if let Some(events) = &events {
+            let kind = if stdout {
+                CommandEventKind::Stdout(buffer[..size].to_vec())
+            } else {
+                CommandEventKind::Stderr(buffer[..size].to_vec())
+            };
+            events
+                .publish(kind)
+                .map_err(|error| StreamError::Event(error.to_string()))?;
+        }
     }
     Ok(output)
 }
@@ -296,6 +416,7 @@ fn join_stream(
         Ok(Ok(output)) => Ok(output),
         Ok(Err(StreamError::OutputLimit)) => Err(CommandError::OutputTooLarge { limit }),
         Ok(Err(StreamError::Io(error))) => Err(CommandError::Process(error)),
+        Ok(Err(StreamError::Event(error))) => Err(CommandError::Process(error)),
         Err(error) => Err(CommandError::Process(error.to_string())),
     }
 }
