@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { SandboxClient } from '../src/index.js';
 
 const calls: Array<{ url: string; init: RequestInit }> = [];
+let fileReads = 0;
 const client = new SandboxClient({
   baseUrl: 'http://localhost:8080',
   apiKey: 'key',
@@ -11,7 +12,8 @@ const client = new SandboxClient({
     if (url.includes('/files/content')) {
       if (init.method === 'PUT') return new Response(null, { status: 204 });
       if (init.method === 'DELETE') return new Response(null, { status: 204 });
-      return new Response(new TextEncoder().encode('hello'));
+      fileReads += 1;
+      return fileReads === 1 ? new Response(new TextEncoder().encode('hello')) : new Response(new Uint8Array([0, 255, 1]));
     }
     if (url.includes('/files?')) return Response.json({ path: '/workspace', entries: [{ path: '/workspace/a.txt', kind: 'file' }] });
     if (url.endsWith('/snapshots')) return Response.json({ id: 'snp_1', state: 'available' }, { status: 202 });
@@ -49,10 +51,24 @@ await assert.rejects(
 
 await sandbox.writeFile('/workspace/a.txt', 'hello');
 assert.equal(await sandbox.readFile('/workspace/a.txt'), 'hello');
+assert.deepEqual(await sandbox.readFileBytes('/workspace/binary.bin'), new Uint8Array([0, 255, 1]));
+await sandbox.writeFile('/workspace/binary.bin', new Uint8Array([0, 255, 1]));
+const writeCall = calls.filter((call) => call.init.method === 'PUT').at(-1);
+assert.ok(writeCall);
+assert.deepEqual(new Uint8Array(await new Response(writeCall.init.body).arrayBuffer()), new Uint8Array([0, 255, 1]));
 assert.equal((await sandbox.listFiles()).length, 1);
 await sandbox.deleteFile('/workspace/a.txt');
-assert.equal((await sandbox.snapshot({ expiresInSeconds: 60 })).id, 'snp_1');
+const snapshot = await sandbox.snapshot({ expiresInSeconds: 60 });
+assert.equal(snapshot.id, 'snp_1');
+const snapshotCall = calls.find((call) => call.url.endsWith('/snapshots'));
+assert.ok(snapshotCall);
+assert.ok(new Headers(snapshotCall.init.headers).get('Idempotency-Key'));
+assert.equal(typeof JSON.parse(String(snapshotCall.init.body)).expiresAt, 'string');
 await sandbox.restore('snp_1');
+const restoreCall = calls.find((call) => call.url.endsWith('/restore'));
+assert.ok(restoreCall);
+assert.deepEqual(JSON.parse(String(restoreCall.init.body)), { snapshotId: snapshot.id });
+await assert.rejects(sandbox.restore(''), /snapshotId must not be empty/);
 
 assert.equal(calls.some((call) => call.url.includes('path=%2Fworkspace%2Fa.txt')), true);
 assert.equal(calls.filter((call) => call.init.method === 'POST').length, 3);

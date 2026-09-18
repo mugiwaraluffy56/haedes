@@ -30,7 +30,13 @@ for await (const event of sandbox.execStream('npm test')) {
 
 await sandbox.writeFile('/workspace/README.md', '# demo');
 console.log(await sandbox.readFile('/workspace/README.md'));
+
+const snapshot = await sandbox.snapshot({ expiresInSeconds: 3600 });
 await sandbox.destroy();
+
+const restored = await client.sandboxes.create({ snapshotId: snapshot.id });
+console.log(await restored.readFile('/workspace/README.md'));
+await restored.destroy();
 ```
 
 Pass a custom `fetch` implementation and `requestTimeoutMs` when integrating
