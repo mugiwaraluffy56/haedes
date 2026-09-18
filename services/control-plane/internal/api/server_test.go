@@ -2,6 +2,7 @@ package api_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -159,6 +160,167 @@ func TestListAndDestroyRoutesReturnDocumentedResponses(t *testing.T) {
 	if repeatedRecorder.Code != http.StatusAccepted {
 		t.Fatalf("repeated destroy status = %d, body = %s", repeatedRecorder.Code, repeatedRecorder.Body.String())
 	}
+}
+
+func TestSnapshotRoutesCreateIdempotentlyListGetAndRestore(t *testing.T) {
+	server, snapshots, store, runtime := testSnapshotServer(t, "owner-1")
+	createSandboxForSnapshot(t, server)
+
+	expiresAt := time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC)
+	body, err := json.Marshal(contracts.SnapshotCreateRequest{ExpiresAt: &expiresAt})
+	if err != nil {
+		t.Fatal(err)
+	}
+	create := httptest.NewRequest(http.MethodPost, "/v1/sandboxes/sbx_001/snapshots", bytes.NewReader(body))
+	create.Header.Set("Authorization", "Bearer test-api-key")
+	create.Header.Set("Idempotency-Key", "snapshot-1")
+	recorder := httptest.NewRecorder()
+	server.ServeHTTP(recorder, create)
+	if recorder.Code != http.StatusAccepted || recorder.Header().Get("Location") != "/v1/snapshots/snp_001" {
+		t.Fatalf("create status = %d, headers = %#v, body = %s", recorder.Code, recorder.Header(), recorder.Body.String())
+	}
+	var created contracts.SnapshotMetadata
+	if err := json.Unmarshal(recorder.Body.Bytes(), &created); err != nil {
+		t.Fatal(err)
+	}
+	if created.State != "available" || created.Checksum == nil || len(*created.Checksum) == 0 {
+		t.Fatalf("created snapshot = %+v", created)
+	}
+
+	retry := httptest.NewRequest(http.MethodPost, "/v1/sandboxes/sbx_001/snapshots", bytes.NewReader(body))
+	retry.Header.Set("Authorization", "Bearer test-api-key")
+	retry.Header.Set("Idempotency-Key", "snapshot-1")
+	retryRecorder := httptest.NewRecorder()
+	server.ServeHTTP(retryRecorder, retry)
+	if retryRecorder.Code != http.StatusAccepted || len(store.Events) != 1 {
+		t.Fatalf("retry status = %d, store events = %+v", retryRecorder.Code, store.Events)
+	}
+
+	list := httptest.NewRequest(http.MethodGet, "/v1/sandboxes/sbx_001/snapshots", nil)
+	list.Header.Set("Authorization", "Bearer test-api-key")
+	listRecorder := httptest.NewRecorder()
+	server.ServeHTTP(listRecorder, list)
+	if listRecorder.Code != http.StatusOK {
+		t.Fatalf("list status = %d, body = %s", listRecorder.Code, listRecorder.Body.String())
+	}
+	var page contracts.SnapshotPage
+	if err := json.Unmarshal(listRecorder.Body.Bytes(), &page); err != nil {
+		t.Fatal(err)
+	}
+	if len(page.Items) != 1 || page.Items[0].ID != "snp_001" {
+		t.Fatalf("snapshot page = %+v", page)
+	}
+
+	get := httptest.NewRequest(http.MethodGet, "/v1/snapshots/snp_001", nil)
+	get.Header.Set("Authorization", "Bearer test-api-key")
+	getRecorder := httptest.NewRecorder()
+	server.ServeHTTP(getRecorder, get)
+	if getRecorder.Code != http.StatusOK {
+		t.Fatalf("get status = %d, body = %s", getRecorder.Code, getRecorder.Body.String())
+	}
+
+	restore := httptest.NewRequest(http.MethodPost, "/v1/sandboxes/sbx_001/restore", strings.NewReader(`{"snapshotId":"snp_001"}`))
+	restore.Header.Set("Authorization", "Bearer test-api-key")
+	restoreRecorder := httptest.NewRecorder()
+	server.ServeHTTP(restoreRecorder, restore)
+	if restoreRecorder.Code != http.StatusAccepted || len(runtime.RuntimeEvents) < 3 {
+		t.Fatalf("restore status = %d, runtime events = %+v", restoreRecorder.Code, runtime.RuntimeEvents)
+	}
+	if _, err := snapshots.Get(context.Background(), "snp_001"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestSnapshotRoutesRejectUnknownAndChecksumFailures(t *testing.T) {
+	server, snapshots, store, _ := testSnapshotServer(t, "owner-1")
+	createSandboxForSnapshot(t, server)
+
+	unknown := httptest.NewRequest(http.MethodPost, "/v1/sandboxes/sbx_001/restore", strings.NewReader(`{"snapshotId":"snp_missing"}`))
+	unknown.Header.Set("Authorization", "Bearer test-api-key")
+	unknownRecorder := httptest.NewRecorder()
+	server.ServeHTTP(unknownRecorder, unknown)
+	if unknownRecorder.Code != http.StatusNotFound {
+		t.Fatalf("unknown restore status = %d, body = %s", unknownRecorder.Code, unknownRecorder.Body.String())
+	}
+
+	snapshot := sandbox.SnapshotMetadata{ID: "snp_bad", SandboxID: "sbx_001", State: "available", ByteSize: 1, SHA256: "bad", CreatedAt: time.Now().UTC()}
+	snapshots.Save(snapshot)
+	if _, err := store.Put(context.Background(), snapshot.ID, strings.NewReader("archive"), sandbox.ArchiveInfo{}); err != nil {
+		t.Fatal(err)
+	}
+	checksum := httptest.NewRequest(http.MethodPost, "/v1/sandboxes/sbx_001/restore", strings.NewReader(`{"snapshotId":"snp_bad"}`))
+	checksum.Header.Set("Authorization", "Bearer test-api-key")
+	checksumRecorder := httptest.NewRecorder()
+	server.ServeHTTP(checksumRecorder, checksum)
+	if checksumRecorder.Code != http.StatusConflict {
+		t.Fatalf("checksum restore status = %d, body = %s", checksumRecorder.Code, checksumRecorder.Body.String())
+	}
+	assertErrorCode(t, checksumRecorder, "snapshot_checksum_mismatch")
+}
+
+func TestSnapshotRoutesRejectIdempotencyReuse(t *testing.T) {
+	server, _, _, _ := testSnapshotServer(t, "owner-1")
+	createSandboxForSnapshot(t, server)
+	first := httptest.NewRequest(http.MethodPost, "/v1/sandboxes/sbx_001/snapshots", nil)
+	first.Header.Set("Authorization", "Bearer test-api-key")
+	first.Header.Set("Idempotency-Key", "snapshot-reuse")
+	server.ServeHTTP(httptest.NewRecorder(), first)
+
+	second := httptest.NewRequest(http.MethodPost, "/v1/sandboxes/sbx_001/snapshots", strings.NewReader(`{"expiresAt":"2026-01-02T00:00:00Z"}`))
+	second.Header.Set("Authorization", "Bearer test-api-key")
+	second.Header.Set("Idempotency-Key", "snapshot-reuse")
+	recorder := httptest.NewRecorder()
+	server.ServeHTTP(recorder, second)
+	if recorder.Code != http.StatusConflict {
+		t.Fatalf("reuse status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	assertErrorCode(t, recorder, "idempotency_conflict")
+}
+
+func createSandboxForSnapshot(t *testing.T, server *api.Server) {
+	t.Helper()
+	request := httptest.NewRequest(http.MethodPost, "/v1/sandboxes", bytes.NewReader(validCreateBody(t, "image:test")))
+	request.Header.Set("Authorization", "Bearer test-api-key")
+	request.Header.Set("Idempotency-Key", "snapshot-sandbox")
+	recorder := httptest.NewRecorder()
+	server.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusAccepted {
+		t.Fatalf("sandbox setup status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+}
+
+func testSnapshotServer(t *testing.T, ownerID string) (*api.Server, *fakes.SnapshotRepository, *fakes.ObjectStore, *fakes.Runtime) {
+	t.Helper()
+	clock := fakes.NewClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+	compute := fakes.NewCompute(clock)
+	compute.StartTask = sandbox.TaskRef{ARN: "task-fixed", Endpoint: "http://runtime/fixed", RuntimeToken: "runtime-token"}
+	runtime := fakes.NewRuntime(clock)
+	runtime.Register("sbx_001", compute.StartTask)
+	repository := fakes.NewRepository()
+	snapshots := fakes.NewSnapshotRepository()
+	store := fakes.NewObjectStore()
+	service := sandbox.NewService(sandbox.Dependencies{
+		Repository:    repository,
+		Compute:       compute,
+		Runtime:       runtime,
+		Snapshots:     snapshots,
+		SnapshotStore: store,
+		IDs:           testIDs{},
+		Clock:         clock,
+	})
+	record, err := auth.NewAPIKeyRecord("key-test", ownerID, "test-api-key")
+	if err != nil {
+		t.Fatal(err)
+	}
+	storeAuth, err := auth.NewMemoryStore(record)
+	if err != nil {
+		t.Fatal(err)
+	}
+	authentication, err := auth.NewService(storeAuth)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return api.NewServer(service, authentication), snapshots, store, runtime
 }
 
 func testServer(t *testing.T, ownerID string) (*api.Server, *fakes.Repository, *fakes.Compute) {

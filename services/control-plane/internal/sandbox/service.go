@@ -240,13 +240,41 @@ func (service *Service) CreateSnapshot(ctx context.Context, ownerID string, id S
 	snapshot.ObjectKey = string(snapshot.ID)
 	snapshot.ByteSize = stored.ByteSize
 	snapshot.SHA256 = stored.SHA256
-	snapshot.State = "available"
+	if err := service.snapshots.Update(ctx, snapshot); err != nil {
+		service.fail(ctx, &sandbox, err)
+		return SnapshotMetadata{}, err
+	}
 	if err := service.snapshots.UpdateState(ctx, snapshot.ID, "requested", "available"); err != nil {
 		service.fail(ctx, &sandbox, err)
 		return SnapshotMetadata{}, err
 	}
+	snapshot.State = "available"
 	if err := service.transition(ctx, &sandbox, StateRunning, ""); err != nil {
 		return SnapshotMetadata{}, err
+	}
+	return snapshot, nil
+}
+
+func (service *Service) ListSnapshots(ctx context.Context, ownerID string, sandboxID SandboxID, cursor string, limit int) (Page[SnapshotMetadata], error) {
+	if _, err := service.Get(ctx, ownerID, sandboxID); err != nil {
+		return Page[SnapshotMetadata]{}, err
+	}
+	if service.snapshots == nil {
+		return Page[SnapshotMetadata]{}, fmt.Errorf("snapshot repository is unavailable")
+	}
+	return service.snapshots.List(ctx, sandboxID, cursor, limit)
+}
+
+func (service *Service) GetSnapshot(ctx context.Context, ownerID string, snapshotID SnapshotID) (SnapshotMetadata, error) {
+	if service.snapshots == nil {
+		return SnapshotMetadata{}, fmt.Errorf("snapshot repository is unavailable")
+	}
+	snapshot, err := service.snapshots.Get(ctx, snapshotID)
+	if err != nil {
+		return SnapshotMetadata{}, err
+	}
+	if _, err := service.Get(ctx, ownerID, snapshot.SandboxID); err != nil {
+		return SnapshotMetadata{}, ErrNotFound
 	}
 	return snapshot, nil
 }
@@ -264,17 +292,23 @@ func (service *Service) Restore(ctx context.Context, ownerID string, id SandboxI
 		return err
 	}
 	if snapshot.State != "available" {
-		return fmt.Errorf("snapshot is not available")
+		return ErrSnapshotUnavailable
+	}
+	if snapshot.ExpiresAt != nil && !service.clock.Now().Before(*snapshot.ExpiresAt) {
+		return ErrSnapshotExpired
 	}
 	ownerSandbox, err := service.Get(ctx, ownerID, snapshot.SandboxID)
 	if err != nil || ownerSandbox.OwnerID != sandbox.OwnerID {
 		return ErrNotFound
 	}
-	archive, _, err := service.snapshotStore.Open(ctx, snapshotID)
+	archive, info, err := service.snapshotStore.Open(ctx, snapshotID)
 	if err != nil {
-		return err
+		return fmt.Errorf("%w: snapshot archive is unavailable", ErrNotFound)
 	}
 	defer archive.Close()
+	if (snapshot.ByteSize != 0 && snapshot.ByteSize != info.ByteSize) || (snapshot.SHA256 != "" && snapshot.SHA256 != info.SHA256) {
+		return ErrSnapshotChecksumMismatch
+	}
 	return service.runtime.RestoreWorkspace(ctx, sandbox.Task.Endpoint, sandbox.Task.RuntimeToken, archive)
 }
 

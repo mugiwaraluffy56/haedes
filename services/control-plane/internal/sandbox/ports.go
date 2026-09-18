@@ -35,6 +35,8 @@ type RuntimeClient interface {
 type SnapshotRepository interface {
 	Create(ctx context.Context, snapshot SnapshotMetadata) error
 	Get(ctx context.Context, id SnapshotID) (SnapshotMetadata, error)
+	List(ctx context.Context, sandboxID SandboxID, cursor string, limit int) (Page[SnapshotMetadata], error)
+	Update(ctx context.Context, snapshot SnapshotMetadata) error
 	UpdateState(ctx context.Context, id SnapshotID, expected, next string) error
 }
 
