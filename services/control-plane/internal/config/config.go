@@ -99,16 +99,20 @@ func LoadFrom(lookup LookupEnv) (Config, error) {
 		return Config{}, fmt.Errorf("%w: log level, AWS region, and API base URL must be non-empty", ErrInvalid)
 	}
 	if config.AWSEnabled {
-		for name, value := range map[string]string{
-			"HAEDES_ECS_CLUSTER":         config.ECSCluster,
-			"HAEDES_ECS_TASK_DEFINITION": config.ECSTaskDefinition,
-			"HAEDES_ECS_CONTAINER_NAME":  config.ECSContainerName,
-			"HAEDES_DYNAMODB_TABLE":      config.DynamoDBTable,
-			"HAEDES_SNAPSHOT_TABLE":      config.SnapshotTable,
-			"HAEDES_SNAPSHOT_BUCKET":     config.SnapshotBucket,
-		} {
-			if strings.TrimSpace(value) == "" {
-				return Config{}, fmt.Errorf("%w: %s", ErrMissing, name)
+		requiredAWSSettings := []struct {
+			name  string
+			value string
+		}{
+			{"HAEDES_ECS_CLUSTER", config.ECSCluster},
+			{"HAEDES_ECS_TASK_DEFINITION", config.ECSTaskDefinition},
+			{"HAEDES_ECS_CONTAINER_NAME", config.ECSContainerName},
+			{"HAEDES_DYNAMODB_TABLE", config.DynamoDBTable},
+			{"HAEDES_SNAPSHOT_TABLE", config.SnapshotTable},
+			{"HAEDES_SNAPSHOT_BUCKET", config.SnapshotBucket},
+		}
+		for _, setting := range requiredAWSSettings {
+			if strings.TrimSpace(setting.value) == "" {
+				return Config{}, fmt.Errorf("%w: %s", ErrMissing, setting.name)
 			}
 		}
 		if len(config.PrivateSubnetIDs) == 0 || len(config.SandboxSecurityGroupIDs) == 0 {

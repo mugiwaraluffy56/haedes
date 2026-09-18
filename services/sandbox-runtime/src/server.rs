@@ -219,21 +219,16 @@ async fn command_events(
         }
     };
     let stream = stream! {
-        loop {
-            match receiver.recv().await {
-                Ok(Some(event)) => {
-                    let terminal = matches!(event.kind, CommandEventKind::Completed(_) | CommandEventKind::Failed { .. });
-                    let (kind, payload) = event_payload(&event.kind);
-                    let sse_event = Event::default()
-                        .id(event.sequence.to_string())
-                        .event(kind)
-                        .json_data(payload)
-                        .unwrap_or_else(|_| Event::default().event("failed"));
-                    yield Ok::<Event, Infallible>(sse_event);
-                    if terminal { break; }
-                }
-                Ok(None) | Err(_) => break,
-            }
+        while let Ok(Some(event)) = receiver.recv().await {
+            let terminal = matches!(event.kind, CommandEventKind::Completed(_) | CommandEventKind::Failed { .. });
+            let (kind, payload) = event_payload(&event.kind);
+            let sse_event = Event::default()
+                .id(event.sequence.to_string())
+                .event(kind)
+                .json_data(payload)
+                .unwrap_or_else(|_| Event::default().event("failed"));
+            yield Ok::<Event, Infallible>(sse_event);
+            if terminal { break; }
         }
     };
     Sse::new(stream)
@@ -395,9 +390,7 @@ fn file_error_status(error: &FileError) -> StatusCode {
     match error {
         FileError::Path(_) => StatusCode::BAD_REQUEST,
         FileError::NotFound => StatusCode::NOT_FOUND,
-        FileError::BodyTooLarge { .. } | FileError::TooManyEntries => {
-            StatusCode::PAYLOAD_TOO_LARGE
-        }
+        FileError::BodyTooLarge { .. } | FileError::TooManyEntries => StatusCode::PAYLOAD_TOO_LARGE,
         FileError::IsDirectory
         | FileError::NotDirectory
         | FileError::DirectoryNotEmpty

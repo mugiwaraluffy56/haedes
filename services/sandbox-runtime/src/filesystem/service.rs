@@ -150,9 +150,7 @@ impl FileService {
         if metadata.is_dir() {
             match tokio::fs::remove_dir(&path).await {
                 Ok(()) => Ok(()),
-                Err(error) if error.kind() == std::io::ErrorKind::DirectoryNotEmpty => {
-                    Err(FileError::DirectoryNotEmpty)
-                }
+                Err(error) if is_directory_not_empty(&error) => Err(FileError::DirectoryNotEmpty),
                 Err(error) => Err(map_io(error)),
             }
         } else {
@@ -181,6 +179,21 @@ impl FileService {
             byte_size,
         })
     }
+}
+
+fn is_directory_not_empty(error: &std::io::Error) -> bool {
+    #[cfg(unix)]
+    {
+        return error.raw_os_error() == Some(libc::ENOTEMPTY);
+    }
+
+    #[cfg(windows)]
+    {
+        return error.raw_os_error() == Some(145);
+    }
+
+    #[allow(unreachable_code)]
+    false
 }
 
 fn map_io(error: std::io::Error) -> FileError {
