@@ -15,7 +15,7 @@ const client = new SandboxClient({
     }
     if (String(input).endsWith('/v1/sandboxes/sbx_1')) {
       return init.method === 'DELETE'
-        ? new Response(null, { status: 202 })
+        ? Response.json({ id: 'sbx_1', state: 'stopping', config: {}, snapshotIds: [] }, { status: 202 })
         : Response.json({ id: 'sbx_1', state: 'running', config: {}, snapshotIds: [] });
     }
     throw new Error(`unexpected request: ${String(input)}`);
@@ -43,7 +43,7 @@ const page = await client.sandboxes.list({ limit: 10, state: 'running' });
 assert.deepEqual(page, { items: [] });
 const fetched = await client.sandboxes.get('sbx_1');
 assert.equal((await fetched.get()).id, 'sbx_1');
-await fetched.destroy();
+assert.equal((await fetched.destroy()).state, 'stopping');
 assert.equal(calls.at(-1)?.init.method, 'DELETE');
 
 console.log('sdk client checks passed');

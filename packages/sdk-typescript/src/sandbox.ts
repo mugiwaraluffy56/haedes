@@ -114,8 +114,8 @@ export class SandboxHandle {
     });
   }
 
-  async destroy(): Promise<void> {
-    await this.client.requestEmpty(`/v1/sandboxes/${encodeURIComponent(this.id)}`, { method: 'DELETE' });
+  async destroy(): Promise<Sandbox> {
+    return this.client.requestJson<Sandbox>(`/v1/sandboxes/${encodeURIComponent(this.id)}`, { method: 'DELETE' });
   }
 
   private filePath(resource: string, path: string): string {

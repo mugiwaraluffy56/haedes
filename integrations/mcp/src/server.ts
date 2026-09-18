@@ -1,7 +1,7 @@
 import { createInterface, type ReadLine } from 'node:readline';
-import { McpError } from './errors.js';
+import { errorResult, McpError, toMcpError } from './errors.js';
 import { createPlatformClient, type PlatformClient } from './platform-client.js';
-import { createToolRegistry, type ToolHandler, type ToolName, type ToolResult } from './tools.js';
+import { createSdkToolHandlers, createToolRegistry, type ToolHandler, type ToolName, type ToolResult } from './tools.js';
 
 export interface McpServerConfig {
   apiUrl: string;
@@ -44,7 +44,11 @@ export class McpServer {
   }
 
   async callTool(name: string, arguments_: unknown): Promise<ToolResult> {
-    return this.registry.call(name, arguments_, { client: this.platform.sdk });
+    try {
+      return await this.registry.call(name, arguments_, { client: this.platform.sdk });
+    } catch (error) {
+      throw toMcpError(error);
+    }
   }
 
   async handle(request: JsonRpcRequest): Promise<JsonRpcResponse | undefined> {
@@ -60,8 +64,7 @@ export class McpServer {
         const result = await this.callTool(name, request.params?.arguments ?? {});
         return { jsonrpc: '2.0', id: request.id, result };
       } catch (error) {
-        if (error instanceof McpError) return { jsonrpc: '2.0', id: request.id, result: { isError: true, content: [{ type: 'text', text: error.message }], structuredContent: { code: error.code, message: error.message, details: error.details } } };
-        throw error;
+        return { jsonrpc: '2.0', id: request.id, result: errorResult(toMcpError(error)) };
       }
     }
     return this.protocolError(request.id, `Unsupported MCP method ${request.method}.`);
@@ -73,7 +76,7 @@ export class McpServer {
 }
 
 export function createMcpServer(config: McpServerConfig, handlers: Partial<Record<ToolName, ToolHandler>> = {}): McpServer {
-  return new McpServer(createPlatformClient({ baseUrl: config.apiUrl, apiKey: config.apiKey, ...(config.fetch ? { fetch: config.fetch } : {}) }), handlers);
+  return new McpServer(createPlatformClient({ baseUrl: config.apiUrl, apiKey: config.apiKey, ...(config.fetch ? { fetch: config.fetch } : {}) }), { ...createSdkToolHandlers(), ...handlers });
 }
 
 export async function startStdioServer(server: McpServer, input: NodeJS.ReadableStream = process.stdin, output: NodeJS.WritableStream = process.stdout): Promise<void> {
