@@ -44,6 +44,28 @@ func TestLoadProductionAcceptsCompleteConfiguration(t *testing.T) {
 	}
 }
 
+func TestLoadAWSModeRequiresAdapterSettings(t *testing.T) {
+	values := map[string]string{"HAEDES_AWS_ENABLED": "true"}
+	if _, err := LoadFrom(mapLookup(values)); err == nil || !strings.Contains(err.Error(), "HAEDES_ECS_CLUSTER") {
+		t.Fatalf("expected missing ECS configuration error, got %v", err)
+	}
+
+	values["HAEDES_ECS_CLUSTER"] = "cluster"
+	values["HAEDES_ECS_TASK_DEFINITION"] = "task"
+	values["HAEDES_PRIVATE_SUBNET_IDS"] = "subnet-a, subnet-b"
+	values["HAEDES_SANDBOX_SECURITY_GROUP_IDS"] = "sg-runtime"
+	values["HAEDES_DYNAMODB_TABLE"] = "metadata"
+	values["HAEDES_SNAPSHOT_TABLE"] = "snapshots"
+	values["HAEDES_SNAPSHOT_BUCKET"] = "bucket"
+	config, err := LoadFrom(mapLookup(values))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !config.AWSEnabled || len(config.PrivateSubnetIDs) != 2 || config.SnapshotTable != "snapshots" {
+		t.Fatalf("unexpected AWS configuration: %#v", config)
+	}
+}
+
 func mapLookup(values map[string]string) LookupEnv {
 	return func(name string) (string, bool) {
 		value, ok := values[name]

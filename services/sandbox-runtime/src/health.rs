@@ -3,7 +3,7 @@ use std::sync::Arc;
 use axum::{extract::State, Json};
 use serde::Serialize;
 
-use crate::config::Config;
+use crate::{config::Config, server::RuntimeState};
 
 #[derive(Debug, Serialize)]
 pub struct HealthResponse {
@@ -16,12 +16,12 @@ pub struct HealthResponse {
     pub workspace_available: bool,
 }
 
-pub async fn health(State(config): State<Arc<Config>>) -> Json<HealthResponse> {
-    health_response(&config).await
+pub async fn health(State(state): State<Arc<RuntimeState>>) -> Json<HealthResponse> {
+    health_response(&state.config).await
 }
 
-pub async fn runtime_status(State(config): State<Arc<Config>>) -> Json<HealthResponse> {
-    health_response(&config).await
+pub async fn runtime_status(State(state): State<Arc<RuntimeState>>) -> Json<HealthResponse> {
+    health_response(&state.config).await
 }
 
 async fn health_response(config: &Config) -> Json<HealthResponse> {

@@ -8,6 +8,7 @@ use std::{
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 
+use serde::Serialize;
 use sha2::{Digest, Sha256};
 use tar::{Builder, EntryType, Header};
 use thiserror::Error;
@@ -19,7 +20,7 @@ pub const MAX_ARCHIVE_BYTES: usize = 100 * 1024 * 1024;
 const ARCHIVE_ROOT: &str = "workspace";
 const MEDIA_TYPE: &str = "application/vnd.haedes.workspace+tar.zstd";
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct ArchiveInfo {
     pub byte_size: usize,
     pub sha256: String,

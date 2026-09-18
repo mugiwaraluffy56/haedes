@@ -58,6 +58,11 @@ output "metadata_table" {
   value       = module.metadata.table_name
 }
 
+output "snapshot_table" {
+  description = "DynamoDB table for snapshot metadata."
+  value       = module.metadata.snapshot_table_name
+}
+
 output "control_plane_log_group" {
   description = "CloudWatch log group for the control plane."
   value       = module.logs.control_plane_log_group_name
