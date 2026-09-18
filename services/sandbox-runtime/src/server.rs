@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use axum::{
     extract::State,
-    http::{header::AUTHORIZATION, Request},
+    http::{header::AUTHORIZATION, Request, StatusCode},
     middleware::{self, Next},
     response::Response,
     routing::get,
@@ -20,6 +20,7 @@ pub fn build_router(config: Config) -> Router {
     let state = Arc::new(config);
     let protected = Router::new()
         .route("/status", get(runtime_status))
+        .fallback(|| async { StatusCode::NOT_FOUND })
         .layer(middleware::from_fn_with_state(state.clone(), authorize));
 
     Router::new()

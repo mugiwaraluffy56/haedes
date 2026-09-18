@@ -64,23 +64,23 @@ async fn command_events_are_monotonic_and_replay_after_reconnect() {
 #[tokio::test]
 async fn output_limits_and_runtime_failures_are_terminal_failed_events() {
     let workspace = tempdir().unwrap();
-    let runner = CommandRunner::with_limits(
+    let limited_runner = CommandRunner::with_limits(
         PathGuard::new(workspace.path()).unwrap(),
         1024,
         4,
         Duration::from_secs(2),
     );
-    let handle = runner.start(request("printf '12345'")).unwrap();
+    let handle = limited_runner.start(request("printf '12345'")).unwrap();
     let events = collect(handle.events(0).unwrap()).await;
     assert!(matches!(
         events.last().map(|event| &event.kind),
         Some(CommandEventKind::Failed { code, .. }) if code == "command_output_limit"
     ));
 
-    let (_workspace, runner) = runner();
+    let (_workspace, command_runner) = runner();
     let mut failed_request = request("printf ok");
     failed_request.cwd = Some("/workspace/missing".to_owned());
-    let handle = runner.start(failed_request).unwrap();
+    let handle = command_runner.start(failed_request).unwrap();
     let events = collect(handle.events(0).unwrap()).await;
     assert!(matches!(
         events.last().map(|event| &event.kind),
