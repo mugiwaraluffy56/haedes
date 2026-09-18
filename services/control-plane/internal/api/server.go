@@ -100,6 +100,19 @@ func (server *Server) route(writer http.ResponseWriter, request *http.Request) {
 		server.executeCommand(writer, request, principal, segments[2])
 	case len(segments) == 6 && segments[3] == "commands" && segments[5] == "events" && request.Method == http.MethodGet:
 		server.streamCommandEvents(writer, request, principal, segments[2], segments[4])
+	case len(segments) == 4 && segments[3] == "files" && request.Method == http.MethodGet:
+		server.listFiles(writer, request, principal, segments[2])
+	case len(segments) == 5 && segments[3] == "files" && segments[4] == "content":
+		switch request.Method {
+		case http.MethodGet:
+			server.readFile(writer, request, principal, segments[2])
+		case http.MethodPut:
+			server.writeFile(writer, request, principal, segments[2])
+		case http.MethodDelete:
+			server.deleteFile(writer, request, principal, segments[2])
+		default:
+			server.writeError(writer, request, http.StatusNotFound, "not_found", "Resource was not found.", nil)
+		}
 	case len(segments) == 3 && request.Method == http.MethodGet:
 		server.getSandbox(writer, request, principal, segments[2])
 	case len(segments) == 3 && request.Method == http.MethodDelete:

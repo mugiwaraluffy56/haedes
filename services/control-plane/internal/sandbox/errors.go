@@ -7,6 +7,7 @@ var (
 	ErrNotRunning      = errors.New("sandbox is not running")
 	ErrRuntimeMissing  = errors.New("sandbox runtime endpoint is unavailable")
 	ErrCommandNotFound = errors.New("command not found")
+	ErrFileNotFound    = errors.New("file not found")
 )
 
 type InvalidStateTransition struct {
