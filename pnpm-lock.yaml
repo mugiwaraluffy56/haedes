@@ -92,6 +92,15 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
 
+  integrations/github:
+    devDependencies:
+      tsx:
+        specifier: ^4.19.2
+        version: 4.23.13
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+
   integrations/examples/basic-agent: {}
 
   integrations/examples/coding-agent: {}
