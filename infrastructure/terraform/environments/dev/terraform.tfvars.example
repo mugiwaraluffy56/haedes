@@ -1,0 +1,10 @@
+aws_region           = "us-east-1"
+project_name         = "haedes"
+availability_zones   = ["us-east-1a", "us-east-1b"]
+control_plane_image_uri = "123456789012.dkr.ecr.us-east-1.amazonaws.com/haedes/dev/control-plane:dev"
+sandbox_image_uri       = "123456789012.dkr.ecr.us-east-1.amazonaws.com/haedes/dev/sandbox:dev"
+
+tags = {
+  Owner      = "platform"
+  CostCenter = "hackathon"
+}
