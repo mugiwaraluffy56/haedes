@@ -40,9 +40,9 @@ export class SandboxClient {
   async *streamCommandEvents(
     sandboxId: string,
     commandId: string,
-    options: Pick<ExecOptions, 'signal'> = {},
+    options: Pick<ExecOptions, 'signal'> & { lastEventId?: string } = {},
   ): AsyncGenerator<CommandEvent> {
-    let lastEventId: string | undefined;
+    let lastEventId = options.lastEventId;
     let reconnectAttempted = false;
 
     while (true) {

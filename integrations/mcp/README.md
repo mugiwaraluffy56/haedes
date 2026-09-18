@@ -24,7 +24,9 @@ node dist/server.js
 ```
 
 The API key stays in the server-side `SandboxClient`; it is not included in
-tool definitions, arguments, results, or sandbox requests. Operation handlers
-are injected into `createMcpServer` and are implemented in the following MCP
-behavior task. This package owns no lifecycle state, persistence, AWS access,
-or model/provider loop.
+tool definitions, arguments, results, or sandbox requests. The default
+handlers delegate every operation to `@haedes/sdk`, including bounded command
+event collection and workspace file operations. Platform errors are returned
+as structured MCP tool errors with the public API code, HTTP status, request
+ID, and safe API details. This package owns no lifecycle state, persistence,
+AWS access, or model/provider loop.
