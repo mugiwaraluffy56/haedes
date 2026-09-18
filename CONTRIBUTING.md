@@ -24,11 +24,27 @@ Use Node 20.18+, pnpm 9.15+, Go 1.23+, and Rust 1.80+. From the repository root:
 make check
 ```
 
+`make check` is the complete local pull-request gate. It includes the language,
+contract, container, Terraform, dependency, secret, security, and bounded-load
+checks. The gates can also be run independently when iterating:
+
+```sh
+make check-core       # TypeScript, Go, and Rust formatting/checks/tests
+make check-contracts  # Generated API output and schema validation
+make check-containers # Docker builds, compose validation, and runtime smoke
+make check-terraform  # Formatting, offline init, and validation for all stacks
+make check-security   # Boundary/load tests, dependency audit, and secret scan
+```
+
+The complete gate requires Docker, Terraform, `cargo-audit`, and `gitleaks` in
+addition to the language toolchains. It never applies Terraform or calls AWS;
+the AWS smoke test remains opt-in through `AWS_INTEGRATION_TESTS=true`.
+
 The root commands are intentionally repeatable from a clean checkout:
 
 | Command | Purpose |
 | --- | --- |
-| `make check` | Repository validation, generation drift, TypeScript checks, Go checks, and Rust compilation |
+| `make check` | Complete local pull-request quality gate |
 | `make test` | TypeScript, Go, and Rust tests |
 | `make lint` | TypeScript lint, Go vet, and Rust formatting validation |
 | `make format` | Apply Rust formatting |

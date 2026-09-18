@@ -13,6 +13,8 @@ node_modules/
 dist/
 coverage/
 .turbo/
+.next/
+*.tsbuildinfo
 
 # Go
 bin/

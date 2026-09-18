@@ -1,0 +1,41 @@
+name: Containers
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  containers:
+    name: Build and smoke test containers
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: make check-containers
+
+      - uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: haedes-sandbox-base:ci
+          format: table
+          exit-code: '1'
+          ignore-unfixed: true
+          severity: CRITICAL,HIGH
+
+      - uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: haedes-sandbox-dev:ci
+          format: table
+          exit-code: '1'
+          ignore-unfixed: true
+          severity: CRITICAL,HIGH
+
+      - uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: haedes-control-plane:ci
+          format: table
+          exit-code: '1'
+          ignore-unfixed: true
+          severity: CRITICAL,HIGH
