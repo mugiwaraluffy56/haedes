@@ -91,6 +91,16 @@ resource "aws_ecs_task_definition" "control_plane" {
     environment = [
       { name = "HAEDES_ENV", value = var.environment == "prod" ? "production" : "development" },
       { name = "HAEDES_AWS_REGION", value = var.aws_region },
+      { name = "HAEDES_AWS_ENABLED", value = "true" },
+      { name = "HAEDES_ECS_CLUSTER", value = var.cluster_arn },
+      { name = "HAEDES_ECS_TASK_DEFINITION", value = var.sandbox_task_definition_arn },
+      { name = "HAEDES_ECS_CONTAINER_NAME", value = "runtime" },
+      { name = "HAEDES_PRIVATE_SUBNET_IDS", value = join(",", var.private_subnet_ids) },
+      { name = "HAEDES_SANDBOX_SECURITY_GROUP_IDS", value = aws_security_group.sandbox.id },
+      { name = "HAEDES_DYNAMODB_TABLE", value = var.metadata_table_name },
+      { name = "HAEDES_DYNAMODB_INDEX", value = "owner-createdAt-index" },
+      { name = "HAEDES_SNAPSHOT_TABLE", value = var.snapshot_table_name },
+      { name = "HAEDES_SNAPSHOT_BUCKET", value = var.snapshot_bucket_name },
       { name = "HAEDES_CONTROL_PLANE_BIND", value = "0.0.0.0:8080" }
     ]
     logConfiguration = {

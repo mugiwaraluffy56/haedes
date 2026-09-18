@@ -14,6 +14,10 @@ output "metadata_table" {
   value = module.platform.metadata_table
 }
 
+output "snapshot_table" {
+  value = module.platform.snapshot_table
+}
+
 output "ecs_cluster_arn" {
   value = module.platform.ecs_cluster_arn
 }

@@ -72,7 +72,7 @@ data "aws_iam_policy_document" "control_plane_task" {
     sid       = "SandboxMetadata"
     effect    = "Allow"
     actions   = ["dynamodb:ConditionCheckItem", "dynamodb:DeleteItem", "dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:Query", "dynamodb:UpdateItem"]
-    resources = [var.metadata_table_arn, "${var.metadata_table_arn}/index/*"]
+    resources = [var.metadata_table_arn, "${var.metadata_table_arn}/index/*", var.snapshot_table_arn, "${var.snapshot_table_arn}/index/*"]
   }
 
   statement {

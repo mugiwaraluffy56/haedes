@@ -40,3 +40,42 @@ resource "aws_dynamodb_table" "metadata" {
 
   tags = merge(var.tags, { Name = "${var.project_name}-${var.environment}-metadata" })
 }
+
+resource "aws_dynamodb_table" "snapshots" {
+  name         = "${var.project_name}-${var.environment}-snapshots"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "snapshotId"
+
+  attribute {
+    name = "snapshotId"
+    type = "S"
+  }
+  attribute {
+    name = "sandboxId"
+    type = "S"
+  }
+  attribute {
+    name = "createdAt"
+    type = "S"
+  }
+
+  global_secondary_index {
+    name            = "sandbox-createdAt-index"
+    hash_key       = "sandboxId"
+    range_key      = "createdAt"
+    projection_type = "ALL"
+  }
+
+  point_in_time_recovery {
+    enabled = true
+  }
+
+  server_side_encryption {
+    enabled = true
+  }
+  ttl {
+    attribute_name = "expiresAt"
+    enabled        = true
+  }
+  tags = merge(var.tags, { Name = "${var.project_name}-${var.environment}-snapshots" })
+}

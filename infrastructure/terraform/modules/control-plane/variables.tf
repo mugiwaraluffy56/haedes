@@ -26,6 +26,22 @@ variable "cluster_arn" {
   type = string
 }
 
+variable "sandbox_task_definition_arn" {
+  type = string
+}
+
+variable "metadata_table_name" {
+  type = string
+}
+
+variable "snapshot_table_name" {
+  type = string
+}
+
+variable "snapshot_bucket_name" {
+  type = string
+}
+
 variable "image_uri" {
   type = string
 }

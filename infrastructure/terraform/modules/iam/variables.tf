@@ -14,6 +14,10 @@ variable "metadata_table_arn" {
   type = string
 }
 
+variable "snapshot_table_arn" {
+  type = string
+}
+
 variable "tags" {
   type = map(string)
 }
