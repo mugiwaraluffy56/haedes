@@ -1,3 +1,6 @@
 # Basic agent example
 
-Create, execute, inspect, and destroy a sandbox through a supported client.
+See [`integrations/examples/basic-agent`](../../integrations/examples/basic-agent)
+for the executable provider-neutral host example. It exercises sandbox
+creation, command streaming, file read/write, snapshot creation, identity
+reporting, and destruction through the TypeScript SDK abstraction.

@@ -101,9 +101,50 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
 
-  integrations/examples/basic-agent: {}
+  integrations/agents:
+    dependencies:
+      '@haedes/sdk':
+        specifier: workspace:*
+        version: link:../../packages/sdk-typescript
+    devDependencies:
+      tsx:
+        specifier: ^4.19.2
+        version: 4.23.13
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
 
-  integrations/examples/coding-agent: {}
+  integrations/examples/basic-agent:
+    dependencies:
+      '@haedes/agent-adapter':
+        specifier: workspace:*
+        version: link:../../agents
+      '@haedes/sdk':
+        specifier: workspace:*
+        version: link:../../../packages/sdk-typescript
+    devDependencies:
+      '@types/node':
+        specifier: 22.13.10
+        version: 22.13.10
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+
+  integrations/examples/coding-agent:
+    dependencies:
+      '@haedes/agent-adapter':
+        specifier: workspace:*
+        version: link:../../agents
+      '@haedes/sdk':
+        specifier: workspace:*
+        version: link:../../../packages/sdk-typescript
+    devDependencies:
+      '@types/node':
+        specifier: 22.13.10
+        version: 22.13.10
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
 
   integrations/mcp: {}
 

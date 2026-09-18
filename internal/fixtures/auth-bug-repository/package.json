@@ -1,0 +1,12 @@
+{
+  "name": "@haedes/auth-bug-fixture",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --import tsx/esm --test test/auth.test.ts"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2"
+  }
+}
