@@ -1,0 +1,5 @@
+{
+  "name": "@haedes/integration-tests",
+  "private": true,
+  "type": "module"
+}

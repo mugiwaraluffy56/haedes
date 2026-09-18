@@ -17,6 +17,8 @@
     "lint": "turbo run lint",
     "validate:contracts": "tsx scripts/validate-contracts.ts",
     "test": "turbo run test",
+    "test:integration": "node --import tsx/esm tests/integration/client-journey.test.ts",
+    "typecheck:integration": "./integrations/mcp/node_modules/.bin/tsc --noEmit -p tests/integration/tsconfig.json",
     "typecheck": "turbo run typecheck",
     "check:repo": "./scripts/check-repo.sh",
     "check": "pnpm check:repo && pnpm generate && pnpm validate:contracts && pnpm lint && pnpm typecheck && pnpm test"
