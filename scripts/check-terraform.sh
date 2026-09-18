@@ -9,7 +9,7 @@ command -v terraform >/dev/null 2>&1 || {
   exit 1
 }
 
-terraform fmt -check -recursive infrastructure/terraform
+terraform fmt -check -diff -recursive infrastructure/terraform
 
 temporary_dir="$(mktemp -d)"
 cleanup() {
