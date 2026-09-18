@@ -21,6 +21,31 @@ await assert.rejects(client.sandboxes.get('sbx_missing'), (error: unknown) => {
   return true;
 });
 
+const commandErrorClient = new SandboxClient({
+  baseUrl: 'http://localhost:8080',
+  apiKey: 'key',
+  fetch: async (input) => {
+    const url = String(input);
+    if (url.endsWith('/v1/sandboxes/sbx_1')) {
+      return Response.json({ id: 'sbx_1', state: 'provisioning', config: {}, snapshotIds: [] });
+    }
+    if (url.endsWith('/commands')) {
+      return new Response(JSON.stringify({ error: { code: 'sandbox_not_running', message: 'Sandbox is provisioning.', requestId: 'req_2', details: { state: 'provisioning' } } }), {
+        status: 409,
+        headers: { 'Content-Type': 'application/json', 'X-Request-ID': 'req_2' },
+      });
+    }
+    throw new Error(`unexpected request: ${url}`);
+  },
+});
+await assert.rejects((await commandErrorClient.sandboxes.get('sbx_1')).exec('printf hello'), (error: unknown) => {
+  assert.ok(error instanceof SandboxError);
+  assert.equal(error.code, 'sandbox_not_running');
+  assert.equal(error.requestId, 'req_2');
+  assert.equal(error.status, 409);
+  return true;
+});
+
 const timeoutClient = new SandboxClient({
   baseUrl: 'http://localhost:8080',
   apiKey: 'key',

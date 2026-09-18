@@ -23,7 +23,30 @@ const client = new SandboxClient({
 });
 
 const sandbox = await client.sandboxes.get('sbx_1');
-assert.equal((await sandbox.exec('printf hello')).id, 'cmd_1');
+const command = await sandbox.exec('printf hello', {
+  cwd: '/workspace',
+  environment: { TEST_MODE: 'sdk' },
+  timeoutSeconds: 15,
+});
+assert.equal(command.id, 'cmd_1');
+const commandCall = calls.find((call) => call.url.endsWith('/commands'));
+assert.ok(commandCall);
+assert.deepEqual(JSON.parse(String(commandCall.init.body)), {
+  command: 'printf hello',
+  cwd: '/workspace',
+  environment: { TEST_MODE: 'sdk' },
+  timeoutSeconds: 15,
+});
+assert.equal(new Headers(commandCall.init.headers).get('Authorization'), 'Bearer key');
+
+await assert.rejects(sandbox.exec(''), /command must not be empty/);
+await assert.rejects(sandbox.exec('printf hello', { timeoutSeconds: 901 }), /timeoutSeconds must be an integer/);
+await assert.rejects(sandbox.exec('x'.repeat(16 * 1024 + 1)), /command must not exceed/);
+await assert.rejects(
+  sandbox.exec('printf hello', { environment: Object.fromEntries(Array.from({ length: 33 }, (_, index) => [`KEY_${index}`, 'value'])) }),
+  /environment must not contain more than 32 entries/,
+);
+
 await sandbox.writeFile('/workspace/a.txt', 'hello');
 assert.equal(await sandbox.readFile('/workspace/a.txt'), 'hello');
 assert.equal((await sandbox.listFiles()).length, 1);
