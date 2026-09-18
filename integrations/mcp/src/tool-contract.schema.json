@@ -2,140 +2,55 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://haedes.dev/schemas/mcp-tool-contract.schema.json",
   "title": "haedes MCP tool contract",
-  "description": "MCP tool inputs and outputs reference public API schemas instead of defining duplicate domain models.",
+  "description": "Versioned agent tools over the public sandbox API. Tool inputs and results use sandbox, command, file, and snapshot identities.",
+  "version": "2024-11-05",
+  "$defs": {
+    "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9._:-]+$" },
+    "workspacePath": { "type": "string", "minLength": 1, "maxLength": 4096, "pattern": "^/workspace(?:/[^\\u0000-\\u001f]*)?$" },
+    "filePath": { "type": "string", "minLength": 1, "maxLength": 4096, "pattern": "^/workspace/[^\\u0000-\\u001f]*$" },
+    "sandboxState": { "type": "string", "enum": ["requested", "provisioning", "starting", "running", "snapshotting", "stopping", "stopped", "failed", "destroyed"] },
+    "repository": {
+      "type": "object", "additionalProperties": false, "required": ["provider", "url", "path"],
+      "properties": {
+        "provider": { "const": "github" }, "url": { "type": "string", "minLength": 1, "maxLength": 2048 },
+        "ref": { "type": "string", "minLength": 1, "maxLength": 256 }, "path": { "$ref": "#/$defs/workspacePath" }
+      }
+    },
+    "sandboxConfig": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "image": { "type": "string", "minLength": 1, "maxLength": 256 }, "cpuMillis": { "type": "integer", "minimum": 50, "maximum": 4096 },
+        "memoryMiB": { "type": "integer", "minimum": 128, "maximum": 16384 }, "storageGiB": { "type": "integer", "minimum": 1, "maximum": 100 },
+        "maxLifetimeSeconds": { "type": "integer", "minimum": 1, "maximum": 86400 }, "defaultCommandTimeoutSeconds": { "type": "integer", "minimum": 1, "maximum": 900 },
+        "environment": { "type": "object", "maxProperties": 64, "additionalProperties": { "type": "string", "maxLength": 4096 } },
+        "repository": { "$ref": "#/$defs/repository" }, "snapshotId": { "$ref": "#/$defs/id" }
+      }
+    },
+    "commandRequest": {
+      "type": "object", "additionalProperties": false, "required": ["command"],
+      "properties": {
+        "command": { "type": "string", "minLength": 1, "maxLength": 32768 }, "cwd": { "$ref": "#/$defs/workspacePath" },
+        "environment": { "type": "object", "maxProperties": 64, "additionalProperties": { "type": "string", "maxLength": 4096 } },
+        "timeoutSeconds": { "type": "integer", "minimum": 1, "maximum": 900 }
+      }
+    },
+    "sandboxResult": { "type": "object", "additionalProperties": false, "required": ["sandbox"], "properties": { "sandbox": { "type": "object" } } },
+    "commandResult": { "type": "object", "additionalProperties": false, "required": ["sandboxId", "commandId", "result"], "properties": { "sandboxId": { "$ref": "#/$defs/id" }, "commandId": { "$ref": "#/$defs/id" }, "result": { "type": "object" } } },
+    "eventResult": { "type": "object", "additionalProperties": false, "required": ["sandboxId", "commandId", "event"], "properties": { "sandboxId": { "$ref": "#/$defs/id" }, "commandId": { "$ref": "#/$defs/id" }, "event": { "type": "object" } } },
+    "snapshotResult": { "type": "object", "additionalProperties": false, "required": ["snapshot"], "properties": { "snapshot": { "type": "object" } } }
+  },
   "tools": [
-    {
-      "name": "create_sandbox",
-      "description": "Create a temporary sandbox.",
-      "inputSchema": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/schemas/SandboxCreateRequest" },
-      "resultSchema": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/schemas/Sandbox" }
-    },
-    {
-      "name": "execute_command",
-      "description": "Execute a bounded command in a running sandbox.",
-      "inputSchema": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["sandboxId", "request"],
-        "properties": {
-          "sandboxId": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/schemas/SandboxID" },
-          "request": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/schemas/CommandRequest" }
-        }
-      },
-      "resultSchema": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/schemas/CommandResult" }
-    },
-    {
-      "name": "stream_command",
-      "description": "Resume ordered command events.",
-      "inputSchema": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["sandboxId", "commandId"],
-        "properties": {
-          "sandboxId": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/schemas/SandboxID" },
-          "commandId": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/schemas/CommandID" },
-          "lastEventId": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/parameters/LastEventID/schema" }
-        }
-      },
-      "resultSchema": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/schemas/CommandEvent" }
-    },
-    {
-      "name": "list_files",
-      "description": "List entries below a workspace path.",
-      "inputSchema": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["sandboxId"],
-        "properties": {
-          "sandboxId": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/schemas/SandboxID" },
-          "path": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/schemas/WorkspacePath" }
-        }
-      },
-      "resultSchema": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/schemas/FileListResponse" }
-    },
-    {
-      "name": "read_file",
-      "description": "Read a workspace file.",
-      "inputSchema": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["sandboxId", "path"],
-        "properties": {
-          "sandboxId": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/schemas/SandboxID" },
-          "path": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/schemas/WorkspaceFilePath" }
-        }
-      },
-      "resultSchema": { "type": "string", "contentEncoding": "base64" }
-    },
-    {
-      "name": "write_file",
-      "description": "Write bounded content to a workspace file.",
-      "inputSchema": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["sandboxId", "path", "content"],
-        "properties": {
-          "sandboxId": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/schemas/SandboxID" },
-          "path": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/schemas/WorkspaceFilePath" },
-          "content": { "type": "string", "contentEncoding": "base64", "maxLength": 13981016 }
-        }
-      },
-      "resultSchema": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/schemas/FileEntry" }
-    },
-    {
-      "name": "delete_file",
-      "description": "Delete a workspace file or empty directory.",
-      "inputSchema": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["sandboxId", "path"],
-        "properties": {
-          "sandboxId": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/schemas/SandboxID" },
-          "path": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/schemas/WorkspaceFilePath" }
-        }
-      },
-      "resultSchema": { "type": "null" }
-    },
-    {
-      "name": "create_snapshot",
-      "description": "Create a workspace snapshot.",
-      "inputSchema": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["sandboxId"],
-        "properties": {
-          "sandboxId": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/schemas/SandboxID" },
-          "request": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/schemas/SnapshotCreateRequest" }
-        }
-      },
-      "resultSchema": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/schemas/SnapshotMetadata" }
-    },
-    {
-      "name": "restore_snapshot",
-      "description": "Restore a snapshot into a stopped sandbox.",
-      "inputSchema": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["sandboxId", "request"],
-        "properties": {
-          "sandboxId": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/schemas/SandboxID" },
-          "request": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/schemas/RestoreRequest" }
-        }
-      },
-      "resultSchema": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/schemas/Sandbox" }
-    },
-    {
-      "name": "destroy_sandbox",
-      "description": "Destroy a sandbox.",
-      "inputSchema": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["sandboxId"],
-        "properties": {
-          "sandboxId": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/schemas/SandboxID" }
-        }
-      },
-      "resultSchema": { "$ref": "https://haedes.dev/schemas/public-api.json#/components/schemas/Sandbox" }
-    }
+    { "name": "sandbox_create", "description": "Create a temporary Linux computer.", "inputSchema": { "type": "object", "additionalProperties": false, "properties": { "config": { "$ref": "#/$defs/sandboxConfig" } } }, "resultSchema": { "$ref": "#/$defs/sandboxResult" } },
+    { "name": "sandbox_get", "description": "Inspect one sandbox owned by the caller.", "inputSchema": { "type": "object", "additionalProperties": false, "required": ["sandboxId"], "properties": { "sandboxId": { "$ref": "#/$defs/id" } } }, "resultSchema": { "$ref": "#/$defs/sandboxResult" } },
+    { "name": "sandbox_list", "description": "List sandboxes owned by the caller.", "inputSchema": { "type": "object", "additionalProperties": false, "properties": { "cursor": { "type": "string", "minLength": 1, "maxLength": 512 }, "limit": { "type": "integer", "minimum": 1, "maximum": 100 }, "state": { "$ref": "#/$defs/sandboxState" } } }, "resultSchema": { "type": "object", "additionalProperties": false, "required": ["items"], "properties": { "items": { "type": "array", "items": { "type": "object" } }, "nextCursor": { "type": "string", "maxLength": 512 } } } },
+    { "name": "sandbox_exec", "description": "Submit one bounded command to a running sandbox.", "inputSchema": { "type": "object", "additionalProperties": false, "required": ["sandboxId", "request"], "properties": { "sandboxId": { "$ref": "#/$defs/id" }, "request": { "$ref": "#/$defs/commandRequest" } } }, "resultSchema": { "$ref": "#/$defs/commandResult" } },
+    { "name": "sandbox_exec_stream", "description": "Expose ordered command events and terminal status.", "inputSchema": { "type": "object", "additionalProperties": false, "required": ["sandboxId", "commandId"], "properties": { "sandboxId": { "$ref": "#/$defs/id" }, "commandId": { "$ref": "#/$defs/id" }, "lastEventId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[0-9]+$" } } }, "resultSchema": { "$ref": "#/$defs/eventResult" } },
+    { "name": "sandbox_read_file", "description": "Read bounded text from a workspace file.", "inputSchema": { "type": "object", "additionalProperties": false, "required": ["sandboxId", "path"], "properties": { "sandboxId": { "$ref": "#/$defs/id" }, "path": { "$ref": "#/$defs/filePath" } } }, "resultSchema": { "type": "object", "additionalProperties": false, "required": ["sandboxId", "path", "content"], "properties": { "sandboxId": { "$ref": "#/$defs/id" }, "path": { "$ref": "#/$defs/filePath" }, "content": { "type": "string", "maxLength": 13981016 } } } },
+    { "name": "sandbox_write_file", "description": "Write bounded text to a workspace file.", "inputSchema": { "type": "object", "additionalProperties": false, "required": ["sandboxId", "path", "content"], "properties": { "sandboxId": { "$ref": "#/$defs/id" }, "path": { "$ref": "#/$defs/filePath" }, "content": { "type": "string", "maxLength": 13981016 } } }, "resultSchema": { "type": "object", "additionalProperties": false, "required": ["sandboxId", "entry"], "properties": { "sandboxId": { "$ref": "#/$defs/id" }, "entry": { "type": "object" } } } },
+    { "name": "sandbox_list_files", "description": "List workspace entries below a bounded path.", "inputSchema": { "type": "object", "additionalProperties": false, "required": ["sandboxId"], "properties": { "sandboxId": { "$ref": "#/$defs/id" }, "path": { "$ref": "#/$defs/workspacePath" } } }, "resultSchema": { "type": "object", "additionalProperties": false, "required": ["sandboxId", "path", "entries"], "properties": { "sandboxId": { "$ref": "#/$defs/id" }, "path": { "$ref": "#/$defs/workspacePath" }, "entries": { "type": "array", "items": { "type": "object" } } } } },
+    { "name": "sandbox_delete_file", "description": "Delete a workspace file or empty directory.", "inputSchema": { "type": "object", "additionalProperties": false, "required": ["sandboxId", "path"], "properties": { "sandboxId": { "$ref": "#/$defs/id" }, "path": { "$ref": "#/$defs/filePath" } } }, "resultSchema": { "type": "object", "additionalProperties": false } },
+    { "name": "sandbox_snapshot", "description": "Save the workspace as a snapshot.", "inputSchema": { "type": "object", "additionalProperties": false, "required": ["sandboxId"], "properties": { "sandboxId": { "$ref": "#/$defs/id" }, "expiresInSeconds": { "type": "integer", "minimum": 1, "maximum": 604800 } } }, "resultSchema": { "$ref": "#/$defs/snapshotResult" } },
+    { "name": "sandbox_restore", "description": "Restore a snapshot into a fresh sandbox.", "inputSchema": { "type": "object", "additionalProperties": false, "required": ["snapshotId"], "properties": { "snapshotId": { "$ref": "#/$defs/id" } } }, "resultSchema": { "$ref": "#/$defs/sandboxResult" } },
+    { "name": "sandbox_destroy", "description": "Request idempotent destruction of a sandbox.", "inputSchema": { "type": "object", "additionalProperties": false, "required": ["sandboxId"], "properties": { "sandboxId": { "$ref": "#/$defs/id" } } }, "resultSchema": { "$ref": "#/$defs/sandboxResult" } }
   ]
 }
