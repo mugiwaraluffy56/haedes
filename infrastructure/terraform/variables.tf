@@ -131,3 +131,58 @@ variable "tags" {
     error_message = "tags must include non-empty Owner and CostCenter values."
   }
 }
+
+variable "control_plane_cpu" {
+  description = "Fargate CPU units for the control-plane service."
+  type        = number
+  default     = 512
+
+  validation {
+    condition     = var.control_plane_cpu >= 256 && var.control_plane_cpu <= 4096
+    error_message = "control_plane_cpu must be between 256 and 4096 CPU units."
+  }
+}
+
+variable "control_plane_memory" {
+  description = "Fargate memory in MiB for the control-plane service."
+  type        = number
+  default     = 1024
+
+  validation {
+    condition     = var.control_plane_memory >= 512 && var.control_plane_memory <= 8192
+    error_message = "control_plane_memory must be between 512 and 8192 MiB."
+  }
+}
+
+variable "sandbox_cpu" {
+  description = "Fargate CPU units for sandbox tasks."
+  type        = number
+  default     = 1024
+
+  validation {
+    condition     = var.sandbox_cpu >= 256 && var.sandbox_cpu <= 4096
+    error_message = "sandbox_cpu must be between 256 and 4096 CPU units."
+  }
+}
+
+variable "sandbox_memory" {
+  description = "Fargate memory in MiB for sandbox tasks."
+  type        = number
+  default     = 2048
+
+  validation {
+    condition     = var.sandbox_memory >= 512 && var.sandbox_memory <= 16384
+    error_message = "sandbox_memory must be between 512 and 16384 MiB."
+  }
+}
+
+variable "control_plane_desired_count" {
+  description = "Desired control-plane task count."
+  type        = number
+  default     = 1
+
+  validation {
+    condition     = var.control_plane_desired_count >= 1 && var.control_plane_desired_count <= 4
+    error_message = "control_plane_desired_count must be between 1 and 4."
+  }
+}
