@@ -17,7 +17,7 @@ import (
 
 var (
 	ErrRuntimeNotFound = fmt.Errorf("runtime task not found")
-	ErrFileNotFound    = fmt.Errorf("file not found")
+	ErrFileNotFound    = sandbox.ErrFileNotFound
 	ErrCommandNotFound = sandbox.ErrCommandNotFound
 )
 
