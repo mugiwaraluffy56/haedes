@@ -3,27 +3,34 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import type { Sandbox } from '@haedes/sdk';
+import { AwsStatus } from './aws-status';
 import { ErrorPanel } from './error-panel';
+import { ExecutionTimeline, type CommandRun } from './execution-timeline';
+import { SnapshotPanel } from './snapshot-panel';
 import { StateBadge } from './state-badge';
-import { getSandbox, isNonTerminal, toDashboardError, type DashboardError } from '../lib/api-client';
+import { Terminal } from './terminal';
+import { destroySandbox, getSandbox, isNonTerminal, toDashboardError, type DashboardError } from '../lib/api-client';
 
 function formatDate(value: string): string { return new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)); }
-function lifecycleStatus(state: Sandbox['state']): { label: string; detail: string } {
-  if (state === 'running' || state === 'snapshotting') return { label: 'Task active', detail: 'The private AWS computer is available to the agent.' };
-  if (state === 'stopping') return { label: 'Releasing compute', detail: 'Cleanup is in progress and new work is rejected.' };
-  if (state === 'stopped' || state === 'destroyed') return { label: 'Compute released', detail: 'The AWS computer is no longer active.' };
-  if (state === 'failed') return { label: 'Requires attention', detail: 'The control plane retained a failure state for investigation.' };
-  return { label: 'Provisioning computer', detail: 'The control plane is preparing a private AWS computer.' };
-}
 
 export function SandboxDetail({ id }: { id: string }) {
   const [sandbox, setSandbox] = useState<Sandbox | null>(null);
   const [error, setError] = useState<DashboardError | null>(null);
+  const [actionError, setActionError] = useState<DashboardError | null>(null);
   const [loading, setLoading] = useState(true);
+  const [destroying, setDestroying] = useState(false);
+  const [runs, setRuns] = useState<CommandRun[]>([]);
 
   const refresh = useCallback(async () => {
     try { setSandbox(await getSandbox(id)); setError(null); } catch (cause) { setError(toDashboardError(cause)); } finally { setLoading(false); }
   }, [id]);
+
+  async function destroy() {
+    if (!sandbox || destroying || !window.confirm(`Destroy ${sandbox.id}? New work will be rejected.`)) return;
+    setDestroying(true);
+    setActionError(null);
+    try { await destroySandbox(sandbox.id); await refresh(); } catch (cause) { setActionError(toDashboardError(cause)); } finally { setDestroying(false); }
+  }
 
   useEffect(() => { void refresh(); }, [refresh]);
   useEffect(() => {
@@ -32,8 +39,6 @@ export function SandboxDetail({ id }: { id: string }) {
     return () => window.clearInterval(timer);
   }, [sandbox, refresh]);
 
-  const status = sandbox ? lifecycleStatus(sandbox.state) : null;
-
   return (
     <main className="dashboard-shell detail-shell">
       <header className="dashboard-nav"><a className="dashboard-wordmark" href="/"><span>h</span>haedes</a><div className="dashboard-nav-right"><span className="api-indicator"><i /> Live API</span><Link href="/sandboxes">All sandboxes ↗</Link></div></header>
@@ -41,9 +46,12 @@ export function SandboxDetail({ id }: { id: string }) {
         <Link className="back-link" href="/sandboxes">← Back to execution fleet</Link>
         {loading && <div className="detail-loading"><div /><div /><div /></div>}
         {error && <ErrorPanel error={error} />}
-        {sandbox && status && <>
-          <section className="detail-heading"><div><p className="dashboard-eyebrow">Sandbox detail</p><h1>{sandbox.id}</h1><p className="detail-repository">{sandbox.repository?.url ?? 'Untitled workspace'}</p></div><StateBadge state={sandbox.state} /></section>
-          <section className="status-banner"><div className={`status-orb orb-${sandbox.state}`} /><div><span className="status-label">AWS EXECUTION STATUS</span><h2>{status.label}</h2><p>{status.detail}</p></div><span className="status-state">{sandbox.state}</span></section>
+        {sandbox && <>
+          <section className="detail-heading"><div><p className="dashboard-eyebrow">Sandbox detail</p><h1>{sandbox.id}</h1><p className="detail-repository">{sandbox.repository?.url ?? 'Untitled workspace'}</p></div><div className="detail-heading-actions"><StateBadge state={sandbox.state} /><button className="destroy-button" type="button" onClick={() => void destroy()} disabled={destroying || sandbox.state === 'destroyed'}>{destroying ? 'Destroying…' : 'Destroy sandbox'}</button></div></section>
+          <AwsStatus state={sandbox.state} />
+          {actionError && <ErrorPanel error={actionError} />}
+          <div className="activity-layout"><Terminal sandboxId={sandbox.id} enabled={sandbox.state === 'running'} onRunComplete={(run) => setRuns((current) => [...current, run])} /><ExecutionTimeline runs={runs} /></div>
+          <div className="controls-layout"><SnapshotPanel sandbox={sandbox} onChanged={refresh} /></div>
           <div className="detail-grid">
             <DetailCard title="Lifecycle timestamps"><DetailRow label="Created" value={formatDate(sandbox.createdAt)} /><DetailRow label="Expires" value={formatDate(sandbox.expiresAt)} /><DetailRow label="Last activity" value={formatDate(sandbox.lastActivityAt)} /></DetailCard>
             <DetailCard title="Resource allocation"><DetailRow label="CPU" value={`${sandbox.config.cpuMillis} millicores`} /><DetailRow label="Memory" value={`${sandbox.config.memoryMiB} MiB`} /><DetailRow label="Storage" value={`${sandbox.config.storageGiB} GiB`} /></DetailCard>

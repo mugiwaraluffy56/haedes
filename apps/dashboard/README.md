@@ -24,3 +24,9 @@ pnpm --filter dashboard build
 
 The list refreshes every five seconds while any sandbox is in a non-terminal
 state. Stopped, failed, and destroyed sandboxes do not cause polling.
+
+The sandbox detail view is the human control surface for live work: it streams
+stdout and stderr from SDK command events, records the command timeline for the
+current session, shows derived AWS task status, and exposes snapshot, restore,
+and destroy actions. The SDK owns SSE reconnect behavior and the dashboard does
+not maintain a separate lifecycle state.
