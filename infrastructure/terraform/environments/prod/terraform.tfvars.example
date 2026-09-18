@@ -1,0 +1,12 @@
+aws_region              = "us-east-1"
+project_name            = "haedes"
+availability_zones      = ["us-east-1a", "us-east-1b"]
+snapshot_retention_days = 365
+log_retention_days      = 90
+control_plane_image_uri = "123456789012.dkr.ecr.us-east-1.amazonaws.com/haedes/prod/control-plane@sha256:0000000000000000000000000000000000000000000000000000000000000000"
+sandbox_image_uri       = "123456789012.dkr.ecr.us-east-1.amazonaws.com/haedes/prod/sandbox@sha256:0000000000000000000000000000000000000000000000000000000000000000"
+
+tags = {
+  Owner      = "platform"
+  CostCenter = "production"
+}
