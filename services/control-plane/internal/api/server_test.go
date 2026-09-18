@@ -162,6 +162,11 @@ func TestListAndDestroyRoutesReturnDocumentedResponses(t *testing.T) {
 }
 
 func testServer(t *testing.T, ownerID string) (*api.Server, *fakes.Repository, *fakes.Compute) {
+	server, repository, compute, _ := testServerWithRuntime(t, ownerID)
+	return server, repository, compute
+}
+
+func testServerWithRuntime(t *testing.T, ownerID string) (*api.Server, *fakes.Repository, *fakes.Compute, *fakes.Runtime) {
 	t.Helper()
 	clock := fakes.NewClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
 	compute := fakes.NewCompute(clock)
@@ -182,7 +187,7 @@ func testServer(t *testing.T, ownerID string) (*api.Server, *fakes.Repository, *
 	if err != nil {
 		t.Fatal(err)
 	}
-	return api.NewServer(service, authentication), repository, compute
+	return api.NewServer(service, authentication), repository, compute, runtime
 }
 
 func validCreateBody(t *testing.T, image string) []byte {
