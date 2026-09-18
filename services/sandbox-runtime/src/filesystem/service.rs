@@ -94,7 +94,7 @@ impl FileService {
             });
         }
 
-        let mut file = tokio::fs::File::open(path).await.map_err(map_io)?;
+        let file = tokio::fs::File::open(path).await.map_err(map_io)?;
         let mut content = Vec::with_capacity(metadata.len() as usize);
         file.take(self.max_file_bytes as u64 + 1)
             .read_to_end(&mut content)

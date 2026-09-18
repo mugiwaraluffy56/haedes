@@ -214,7 +214,7 @@ impl CommandRunner {
 
         let mut command = Command::new("sh");
         command
-            .arg("-lc")
+            .arg("-c")
             .arg(&request.command)
             .current_dir(cwd)
             .env_clear()
