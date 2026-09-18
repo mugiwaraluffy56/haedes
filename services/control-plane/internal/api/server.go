@@ -27,25 +27,46 @@ const (
 	maxCreateBody    = 1 << 20
 )
 
+type payloadTooLargeError struct{ message string }
+
+func (err payloadTooLargeError) Error() string { return err.message }
+
 var (
 	sandboxIDPattern   = regexp.MustCompile(`^sbx_[A-Za-z0-9_-]+$`)
+	commandIDPattern   = regexp.MustCompile(`^cmd_[A-Za-z0-9_-]+$`)
 	idempotencyPattern = regexp.MustCompile(`^[A-Za-z0-9._:-]{1,128}$`)
 )
 
 type principalKey struct{}
 
 type Server struct {
-	service     *sandbox.Service
-	auth        sandbox.AuthService
-	idempotency *idempotencyStore
+	service           *sandbox.Service
+	auth              sandbox.AuthService
+	idempotency       *idempotencyStore
+	heartbeatInterval time.Duration
 }
 
 func NewServer(service *sandbox.Service, authentication sandbox.AuthService) *Server {
-	return &Server{
-		service:     service,
-		auth:        authentication,
-		idempotency: &idempotencyStore{entries: make(map[string]idempotencyEntry)},
+	return NewServerWithHeartbeat(service, authentication, 15*time.Second)
+}
+
+func NewServerWithHeartbeat(service *sandbox.Service, authentication sandbox.AuthService, heartbeatInterval time.Duration) *Server {
+	if heartbeatInterval <= 0 {
+		heartbeatInterval = 15 * time.Second
 	}
+	return &Server{
+		service:           service,
+		auth:              authentication,
+		idempotency:       &idempotencyStore{entries: make(map[string]idempotencyEntry)},
+		heartbeatInterval: heartbeatInterval,
+	}
+}
+
+func (server *Server) WithHeartbeat(interval time.Duration) *Server {
+	if interval > 0 {
+		server.heartbeatInterval = interval
+	}
+	return server
 }
 
 func (server *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
@@ -75,6 +96,10 @@ func (server *Server) route(writer http.ResponseWriter, request *http.Request) {
 		server.createSandbox(writer, request, principal)
 	case len(segments) == 2 && request.Method == http.MethodGet:
 		server.listSandboxes(writer, request, principal)
+	case len(segments) == 4 && segments[3] == "commands" && request.Method == http.MethodPost:
+		server.executeCommand(writer, request, principal, segments[2])
+	case len(segments) == 6 && segments[3] == "commands" && segments[5] == "events" && request.Method == http.MethodGet:
+		server.streamCommandEvents(writer, request, principal, segments[2], segments[4])
 	case len(segments) == 3 && request.Method == http.MethodGet:
 		server.getSandbox(writer, request, principal, segments[2])
 	case len(segments) == 3 && request.Method == http.MethodDelete:
@@ -105,7 +130,7 @@ func (server *Server) authenticate(writer http.ResponseWriter, request *http.Req
 func (server *Server) createSandbox(writer http.ResponseWriter, request *http.Request, principal sandbox.Principal) {
 	var input contracts.SandboxCreateRequest
 	if err := decodeJSON(writer, request, &input, maxCreateBody); err != nil {
-		server.writeError(writer, request, http.StatusBadRequest, "invalid_request", err.Error(), nil)
+		server.writeValidationError(writer, request, err)
 		return
 	}
 	config, err := parseSandboxConfig(input.Config)
@@ -218,6 +243,10 @@ func decodeJSON(writer http.ResponseWriter, request *http.Request, destination a
 	decoder := json.NewDecoder(request.Body)
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(destination); err != nil {
+		var tooLarge *http.MaxBytesError
+		if errors.As(err, &tooLarge) {
+			return payloadTooLargeError{message: "Request body exceeds the configured limit."}
+		}
 		return fmt.Errorf("request body is malformed: %w", err)
 	}
 	var extra any
@@ -225,6 +254,15 @@ func decodeJSON(writer http.ResponseWriter, request *http.Request, destination a
 		return errors.New("request body must contain one JSON value")
 	}
 	return nil
+}
+
+func (server *Server) writeValidationError(writer http.ResponseWriter, request *http.Request, err error) {
+	var tooLarge payloadTooLargeError
+	if errors.As(err, &tooLarge) {
+		server.writeError(writer, request, http.StatusRequestEntityTooLarge, "payload_too_large", tooLarge.Error(), nil)
+		return
+	}
+	server.writeError(writer, request, http.StatusBadRequest, "invalid_request", err.Error(), nil)
 }
 
 func parseSandboxConfig(input contracts.SandboxConfig) (sandbox.SandboxConfig, error) {
@@ -247,11 +285,14 @@ func parseSandboxConfig(input contracts.SandboxConfig) (sandbox.SandboxConfig, e
 		return sandbox.SandboxConfig{}, errors.New("config.defaultCommandTimeoutSeconds must be between 1 and 900")
 	}
 	if len(input.Environment) > 32 {
-		return sandbox.SandboxConfig{}, errors.New("config.environment must contain at most 32 entries")
+		return sandbox.SandboxConfig{}, payloadTooLargeError{message: "config.environment exceeds the 32 entry limit."}
 	}
 	for key, value := range input.Environment {
-		if key == "" || len(value) > 4096 {
+		if key == "" {
 			return sandbox.SandboxConfig{}, errors.New("config.environment keys and values are invalid")
+		}
+		if len(value) > 4096 {
+			return sandbox.SandboxConfig{}, payloadTooLargeError{message: "config.environment value exceeds the 4096 byte limit."}
 		}
 	}
 	repository, err := parseRepository(input.Repository)

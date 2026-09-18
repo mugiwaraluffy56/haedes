@@ -3,9 +3,10 @@ package sandbox
 import "errors"
 
 var (
-	ErrNotFound       = errors.New("sandbox not found")
-	ErrNotRunning     = errors.New("sandbox is not running")
-	ErrRuntimeMissing = errors.New("sandbox runtime endpoint is unavailable")
+	ErrNotFound        = errors.New("sandbox not found")
+	ErrNotRunning      = errors.New("sandbox is not running")
+	ErrRuntimeMissing  = errors.New("sandbox runtime endpoint is unavailable")
+	ErrCommandNotFound = errors.New("command not found")
 )
 
 type InvalidStateTransition struct {

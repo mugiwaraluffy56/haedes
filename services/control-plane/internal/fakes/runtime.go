@@ -18,7 +18,7 @@ import (
 var (
 	ErrRuntimeNotFound = fmt.Errorf("runtime task not found")
 	ErrFileNotFound    = fmt.Errorf("file not found")
-	ErrCommandNotFound = fmt.Errorf("command not found")
+	ErrCommandNotFound = sandbox.ErrCommandNotFound
 )
 
 type RuntimeEvent struct {
