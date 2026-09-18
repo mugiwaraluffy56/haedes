@@ -30,10 +30,10 @@ module "ecr" {
 module "snapshots" {
   source = "./modules/s3"
 
-  project_name     = var.project_name
-  environment      = var.environment
-  retention_days   = var.snapshot_retention_days
-  tags             = local.common_tags
+  project_name   = var.project_name
+  environment    = var.environment
+  retention_days = var.snapshot_retention_days
+  tags           = local.common_tags
 }
 
 module "metadata" {
@@ -47,10 +47,10 @@ module "metadata" {
 module "logs" {
   source = "./modules/cloudwatch"
 
-  project_name  = var.project_name
-  environment   = var.environment
+  project_name   = var.project_name
+  environment    = var.environment
   retention_days = var.log_retention_days
-  tags          = local.common_tags
+  tags           = local.common_tags
 }
 
 module "ecs" {
@@ -75,15 +75,15 @@ module "iam" {
 module "sandbox" {
   source = "./modules/sandbox"
 
-  project_name          = var.project_name
-  environment           = var.environment
-  image_uri             = var.sandbox_image_uri
-  cpu                   = var.sandbox_cpu
-  memory                = var.sandbox_memory
-  execution_role_arn    = module.iam.sandbox_execution_role_arn
-  log_group_name        = module.logs.sandbox_log_group_name
+  project_name           = var.project_name
+  environment            = var.environment
+  image_uri              = var.sandbox_image_uri
+  cpu                    = var.sandbox_cpu
+  memory                 = var.sandbox_memory
+  execution_role_arn     = module.iam.sandbox_execution_role_arn
+  log_group_name         = module.logs.sandbox_log_group_name
   runtime_container_name = "runtime"
-  tags                  = local.common_tags
+  tags                   = local.common_tags
 }
 
 module "control_plane" {

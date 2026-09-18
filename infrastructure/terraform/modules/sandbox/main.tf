@@ -7,12 +7,12 @@ resource "aws_ecs_task_definition" "sandbox" {
   execution_role_arn       = var.execution_role_arn
 
   container_definitions = jsonencode([{
-    name                  = var.runtime_container_name
-    image                 = var.image_uri
-    cpu                   = var.cpu
-    memory                = var.memory
-    essential             = true
-    user                  = "10001"
+    name                   = var.runtime_container_name
+    image                  = var.image_uri
+    cpu                    = var.cpu
+    memory                 = var.memory
+    essential              = true
+    user                   = "10001"
     readonlyRootFilesystem = true
     portMappings = [{
       containerPort = 8080
