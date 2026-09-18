@@ -51,6 +51,8 @@ type SandboxConfig struct {
 	MaxLifetime           time.Duration
 	DefaultCommandTimeout time.Duration
 	Environment           map[string]string
+	Repository            *RepositoryConfig
+	SnapshotID            *SnapshotID
 }
 
 type RepositoryConfig struct {

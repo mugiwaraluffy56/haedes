@@ -55,6 +55,7 @@ func (service *Service) Create(ctx context.Context, ownerID string, config Sandb
 		OwnerID:        ownerID,
 		State:          StateRequested,
 		Config:         config,
+		Repository:     config.Repository,
 		CreatedAt:      now,
 		ExpiresAt:      now.Add(config.MaxLifetime),
 		LastActivityAt: now,

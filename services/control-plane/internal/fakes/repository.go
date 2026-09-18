@@ -145,6 +145,14 @@ func cloneSandbox(value sandbox.Sandbox) sandbox.Sandbox {
 		repository := *value.Repository
 		clone.Repository = &repository
 	}
+	if value.Config.Repository != nil {
+		repository := *value.Config.Repository
+		clone.Config.Repository = &repository
+	}
+	if value.Config.SnapshotID != nil {
+		snapshotID := *value.Config.SnapshotID
+		clone.Config.SnapshotID = &snapshotID
+	}
 	if value.CurrentCommand != nil {
 		command := *value.CurrentCommand
 		clone.CurrentCommand = &command
