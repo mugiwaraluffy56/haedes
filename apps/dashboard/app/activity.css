@@ -1,0 +1,362 @@
+.detail-heading-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.destroy-button,
+.snapshot-actions button,
+.terminal-form button {
+  padding: 10px 13px;
+  border: 1px solid rgba(168, 232, 209, .35);
+  border-radius: 3px;
+  background: var(--mint);
+  color: #10231f;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.destroy-button {
+  border-color: rgba(255, 133, 123, .35);
+  background: transparent;
+  color: var(--red);
+}
+
+.destroy-button:hover:not(:disabled) {
+  background: rgba(255, 133, 123, .1);
+}
+
+.destroy-button:disabled,
+.snapshot-actions button:disabled,
+.terminal-form button:disabled {
+  color: var(--dim);
+  cursor: wait;
+  opacity: .7;
+}
+
+.activity-layout,
+.controls-layout {
+  display: grid;
+  gap: 13px;
+  margin-top: 13px;
+}
+
+.activity-layout {
+  grid-template-columns: 1.25fr .75fr;
+}
+
+.activity-panel {
+  min-width: 0;
+  padding: 22px;
+  border: 1px solid var(--line);
+  background: rgba(12, 29, 34, .44);
+}
+
+.activity-panel .error-panel {
+  width: auto;
+  margin: 13px 0 0;
+}
+
+.activity-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.activity-heading h2 {
+  margin: 8px 0 0;
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: -.04em;
+}
+
+.activity-count,
+.snapshot-count,
+.stream-status {
+  color: var(--dim);
+  font-family: 'SFMono-Regular', Consolas, monospace;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.stream-status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding-top: 3px;
+}
+
+.stream-status i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--dim);
+}
+
+.stream-live {
+  color: var(--mint);
+}
+
+.stream-live i {
+  background: var(--mint);
+  box-shadow: 0 0 0 5px rgba(168, 232, 209, .08);
+}
+
+.terminal-screen {
+  min-height: 230px;
+  padding: 16px;
+  overflow: auto;
+  border: 1px solid rgba(168, 232, 209, .12);
+  background: #050d10;
+  color: #d7ece4;
+  font-family: 'SFMono-Regular', Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.terminal-line {
+  color: var(--mint);
+}
+
+.terminal-muted,
+.terminal-placeholder {
+  color: var(--dim);
+}
+
+.terminal-placeholder {
+  padding-top: 45px;
+  text-align: center;
+}
+
+.terminal-screen pre {
+  margin: 8px 0 0;
+  color: #d7ece4;
+  font: inherit;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.terminal-form {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 13px;
+}
+
+.terminal-prompt {
+  color: var(--mint);
+  font-family: 'SFMono-Regular', Consolas, monospace;
+}
+
+.terminal-form input {
+  min-width: 0;
+  flex: 1;
+  padding: 10px 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  outline: 0;
+  background: transparent;
+  color: var(--ink);
+  font-family: 'SFMono-Regular', Consolas, monospace;
+  font-size: 11px;
+}
+
+.terminal-form input:focus {
+  border-color: var(--mint);
+}
+
+.terminal-form button {
+  white-space: nowrap;
+}
+
+.terminal-note,
+.panel-note {
+  margin: 13px 0 0;
+  color: var(--dim);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.timeline-list {
+  display: grid;
+  gap: 17px;
+}
+
+.timeline-item {
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr) auto;
+  gap: 11px;
+  align-items: start;
+}
+
+.timeline-marker {
+  width: 7px;
+  height: 7px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: var(--mint);
+}
+
+.timeline-failed,
+.timeline-error {
+  background: var(--red);
+}
+
+.timeline-running {
+  background: var(--orange);
+}
+
+.timeline-main {
+  min-width: 0;
+}
+
+.timeline-main > div {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.timeline-main strong {
+  overflow: hidden;
+  color: #dce9e6;
+  font-family: 'SFMono-Regular', Consolas, monospace;
+  font-size: 11px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timeline-main p {
+  overflow: hidden;
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timeline-status {
+  color: var(--mint);
+  font-size: 9px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.timeline-status-failed,
+.timeline-status-error {
+  color: var(--red);
+}
+
+.timeline-status-running {
+  color: var(--orange);
+}
+
+.timeline-item time {
+  color: var(--dim);
+  font-family: 'SFMono-Regular', Consolas, monospace;
+  font-size: 9px;
+  white-space: nowrap;
+}
+
+.activity-empty {
+  min-height: 100px;
+  margin: 0;
+  padding: 24px 0 6px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.snapshot-summary {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 15px;
+  border: 1px solid var(--line);
+  background: rgba(16, 37, 43, .42);
+}
+
+.snapshot-orb {
+  display: grid;
+  place-items: center;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(137, 217, 225, .35);
+  border-radius: 50%;
+  color: #89d9e1;
+  font-size: 21px;
+}
+
+.snapshot-summary strong {
+  color: #dce9e6;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.snapshot-summary p {
+  overflow: hidden;
+  max-width: 520px;
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-family: 'SFMono-Regular', Consolas, monospace;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.snapshot-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-top: 15px;
+}
+
+.snapshot-actions .button-muted {
+  border-color: var(--line);
+  background: transparent;
+  color: var(--muted);
+}
+
+.snapshot-actions .button-muted:hover:not(:disabled) {
+  border-color: var(--mint);
+  color: var(--mint);
+}
+
+@media (max-width: 850px) {
+  .activity-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .detail-heading-actions {
+    align-items: flex-start;
+    flex-direction: column;
+    margin-top: 20px;
+  }
+
+  .terminal-form {
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+
+  .terminal-form input {
+    flex-basis: calc(100% - 20px);
+  }
+
+  .terminal-form button {
+    margin-left: 20px;
+  }
+
+  .timeline-item {
+    grid-template-columns: 8px minmax(0, 1fr);
+  }
+
+  .timeline-item time {
+    grid-column: 2;
+  }
+}

@@ -1,6 +1,6 @@
 'use client';
 
-import { SandboxClient, SandboxError, type Page, type Sandbox, type SandboxState } from '@haedes/sdk';
+import { SandboxClient, SandboxError, type Page, type Sandbox, type SandboxHandle, type SandboxState, type SnapshotMetadata } from '@haedes/sdk';
 
 export const nonTerminalStates: readonly SandboxState[] = [
   'requested',
@@ -62,4 +62,21 @@ export async function listSandboxes(): Promise<Page<Sandbox>> {
 export async function getSandbox(id: string): Promise<Sandbox> {
   const handle = await createClient().sandboxes.get(id);
   return handle.get();
+}
+
+export async function getSandboxHandle(id: string): Promise<SandboxHandle> {
+  return createClient().sandboxes.get(id);
+}
+
+export async function createSnapshot(id: string): Promise<SnapshotMetadata> {
+  return (await getSandboxHandle(id)).snapshot();
+}
+
+export async function restoreSnapshot(snapshotId: string): Promise<Sandbox> {
+  const handle = await createClient().sandboxes.create({ snapshotId });
+  return handle.get();
+}
+
+export async function destroySandbox(id: string): Promise<void> {
+  await (await getSandboxHandle(id)).destroy();
 }
