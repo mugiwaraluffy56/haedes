@@ -46,6 +46,43 @@ await assert.rejects((await commandErrorClient.sandboxes.get('sbx_1')).exec('pri
   return true;
 });
 
+const fileErrorClient = new SandboxClient({
+  baseUrl: 'http://localhost:8080',
+  apiKey: 'key',
+  fetch: async (input) => {
+    const url = String(input);
+    if (url.endsWith('/v1/sandboxes/sbx_1')) {
+      return Response.json({ id: 'sbx_1', state: 'running', config: {}, snapshotIds: [] });
+    }
+    if (url.includes('/files/content')) {
+      return new Response(JSON.stringify({ error: { code: 'file_not_found', message: 'Missing file.', requestId: 'req_3', details: {} } }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json', 'X-Request-ID': 'req_3' },
+      });
+    }
+    if (url.endsWith('/snapshots')) {
+      return new Response(JSON.stringify({ error: { code: 'snapshot_conflict', message: 'Snapshot is unavailable.', requestId: 'req_4', details: {} } }), {
+        status: 409,
+        headers: { 'Content-Type': 'application/json', 'X-Request-ID': 'req_4' },
+      });
+    }
+    throw new Error(`unexpected request: ${url}`);
+  },
+});
+const fileErrorSandbox = await fileErrorClient.sandboxes.get('sbx_1');
+await assert.rejects(fileErrorSandbox.readFile('/workspace/missing.txt'), (error: unknown) => {
+  assert.ok(error instanceof SandboxError);
+  assert.equal(error.code, 'file_not_found');
+  assert.equal(error.requestId, 'req_3');
+  return true;
+});
+await assert.rejects(fileErrorSandbox.snapshot(), (error: unknown) => {
+  assert.ok(error instanceof SandboxError);
+  assert.equal(error.code, 'snapshot_conflict');
+  assert.equal(error.requestId, 'req_4');
+  return true;
+});
+
 const timeoutClient = new SandboxClient({
   baseUrl: 'http://localhost:8080',
   apiKey: 'key',

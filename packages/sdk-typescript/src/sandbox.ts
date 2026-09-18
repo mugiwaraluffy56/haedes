@@ -74,9 +74,12 @@ export class SandboxHandle {
     yield* this.client.streamCommandEvents(this.id, command.id, { signal });
   }
 
+  async readFileBytes(path: string): Promise<Uint8Array> {
+    return this.client.requestBytes(this.filePath('content', path));
+  }
+
   async readFile(path: string): Promise<string> {
-    const body = await this.client.requestBytes(this.filePath('content', path));
-    return new TextDecoder().decode(body);
+    return new TextDecoder().decode(await this.readFileBytes(path));
   }
 
   async writeFile(path: string, content: FileContent): Promise<void> {
@@ -102,6 +105,9 @@ export class SandboxHandle {
   }
 
   async restore(snapshotId: string): Promise<void> {
+    if (typeof snapshotId !== 'string' || snapshotId.length === 0) {
+      throw new TypeError('snapshotId must not be empty.');
+    }
     await this.client.requestEmpty(`/v1/sandboxes/${encodeURIComponent(this.id)}/restore`, {
       method: 'POST',
       body: JSON.stringify({ snapshotId }),
