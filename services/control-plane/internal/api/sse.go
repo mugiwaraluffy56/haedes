@@ -59,6 +59,9 @@ func (server *Server) streamCommandEvents(writer http.ResponseWriter, request *h
 			if !open {
 				return
 			}
+			if !event.At.IsZero() {
+				server.metrics.Observe("command_event_delivery_delay_seconds", time.Since(event.At).Seconds(), map[string]string{"outcome": "success"})
+			}
 			if err := writeSSEEvent(writer, event); err != nil {
 				return
 			}

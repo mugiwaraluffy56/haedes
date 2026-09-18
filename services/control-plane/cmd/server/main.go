@@ -65,7 +65,9 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", healthHandler)
 	mux.HandleFunc("/readyz", readyHandler)
-	mux.Handle("/v1/", api.NewServer(service, authentication))
+	apiServer := api.NewServer(service, authentication)
+	mux.Handle("/v1/", apiServer)
+	mux.Handle("/metrics", apiServer.MetricsHandler())
 
 	server := &http.Server{
 		Addr:              envOr("HAEDES_CONTROL_PLANE_BIND", defaultBind),

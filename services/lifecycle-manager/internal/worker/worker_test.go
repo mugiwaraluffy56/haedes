@@ -36,7 +36,11 @@ func TestOrphanedTaskIsStoppedOnce(t *testing.T) {
 	repository := newFakeRepository()
 	repository.orphans["task-orphan"] = OrphanTask{ARN: "task-orphan"}
 	compute := &fakeCompute{}
-	worker := newTestWorker(t, repository, compute)
+	metrics := &fakeMetrics{counts: make(map[string]int)}
+	worker, err := New(repository, compute, Config{BatchSize: 10, OperationTimeout: time.Second, Metrics: metrics})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if _, err := worker.ReconcileTasks(context.Background(), time.Now().UTC(), 10); err != nil {
 		t.Fatal(err)
@@ -49,6 +53,9 @@ func TestOrphanedTaskIsStoppedOnce(t *testing.T) {
 	}
 	if len(repository.orphans) != 0 {
 		t.Fatalf("orphan task was not marked stopped: %+v", repository.orphans)
+	}
+	if metrics.counts["sandbox_orphan_total"] != 1 {
+		t.Fatalf("orphan metric count = %d, want 1", metrics.counts["sandbox_orphan_total"])
 	}
 }
 
@@ -187,6 +194,14 @@ func (repository *fakeRepository) MarkOrphanStopped(_ context.Context, taskARN s
 type fakeCompute struct {
 	statuses  map[string]TaskStatus
 	stopCalls int
+}
+
+type fakeMetrics struct {
+	counts map[string]int
+}
+
+func (metrics *fakeMetrics) Inc(name string, _ map[string]string) {
+	metrics.counts[name]++
 }
 
 func (compute *fakeCompute) Describe(_ context.Context, taskARN string) (TaskStatus, error) {

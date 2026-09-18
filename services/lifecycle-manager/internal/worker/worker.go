@@ -43,6 +43,10 @@ type TaskStatus struct {
 	Reason string
 }
 
+type Metrics interface {
+	Inc(name string, labels map[string]string)
+}
+
 // Repository is the persistence boundary owned by the control plane. Stop
 // claims must be atomic so multiple worker instances converge without issuing
 // duplicate stop side effects.
@@ -70,6 +74,7 @@ type Config struct {
 	BatchSize          int
 	StaleStartingAfter time.Duration
 	OperationTimeout   time.Duration
+	Metrics            Metrics
 }
 
 type RunStats struct {
@@ -82,6 +87,7 @@ type Worker struct {
 	repository Repository
 	compute    Compute
 	config     Config
+	metrics    Metrics
 }
 
 var _ LifecycleWorker = (*Worker)(nil)
@@ -102,7 +108,7 @@ func New(repository Repository, compute Compute, config Config) (*Worker, error)
 	if config.BatchSize < 1 || config.StaleStartingAfter <= 0 || config.OperationTimeout <= 0 {
 		return nil, errors.New("lifecycle worker bounds are invalid")
 	}
-	return &Worker{repository: repository, compute: compute, config: config}, nil
+	return &Worker{repository: repository, compute: compute, config: config, metrics: config.Metrics}, nil
 }
 
 func (worker *Worker) ExpireDueSandboxes(ctx context.Context, now time.Time, batchSize int) (int, error) {
@@ -266,7 +272,13 @@ func (worker *Worker) claimOrphan(ctx context.Context, taskARN string) (bool, er
 	if err := worker.compute.Stop(operationContext, taskARN); err != nil && !errors.Is(err, ErrTaskNotFound) {
 		return false, err
 	}
-	return true, worker.repository.MarkOrphanStopped(operationContext, taskARN)
+	if err := worker.repository.MarkOrphanStopped(operationContext, taskARN); err != nil {
+		return false, err
+	}
+	if worker.metrics != nil {
+		worker.metrics.Inc("sandbox_orphan_total", map[string]string{"outcome": "stopped"})
+	}
+	return true, nil
 }
 
 func (worker *Worker) transition(ctx context.Context, id string, expected, next State, reason string) error {
