@@ -3,7 +3,7 @@ use std::{collections::HashMap, convert::Infallible, sync::Arc, time::Duration};
 use async_stream::stream;
 use axum::{
     body::Bytes,
-    extract::{Path, Query, State},
+    extract::{DefaultBodyLimit, Path, Query, State},
     http::{header::AUTHORIZATION, HeaderMap, Request, StatusCode},
     middleware::{self, Next},
     response::{
@@ -19,7 +19,7 @@ use subtle::ConstantTimeEq;
 use crate::{
     config::Config,
     error::{unauthorized, ErrorEnvelope, ErrorPayload},
-    filesystem::{FileService, PathGuard},
+    filesystem::{FileError, FileService, PathGuard, DEFAULT_MAX_FILE_BYTES},
     health::{health, runtime_status},
     process::{CommandRequest, CommandRunner},
     snapshot::{ArchiveService, MAX_ARCHIVE_BYTES},
@@ -80,10 +80,16 @@ pub fn build_router(config: Config) -> Router {
         .route("/files", get(list_files))
         .route(
             "/files/content",
-            get(read_file).put(write_file).delete(delete_file),
+            get(read_file)
+                .put(write_file)
+                .delete(delete_file)
+                .layer(DefaultBodyLimit::max(DEFAULT_MAX_FILE_BYTES + 1)),
         )
         .route("/snapshot/export", get(export_workspace))
-        .route("/snapshot/restore", put(restore_workspace))
+        .route(
+            "/snapshot/restore",
+            put(restore_workspace).layer(DefaultBodyLimit::max(MAX_ARCHIVE_BYTES + 1)),
+        )
         .fallback(|| async { StatusCode::NOT_FOUND })
         .layer(middleware::from_fn_with_state(state.clone(), authorize));
 
@@ -269,7 +275,7 @@ async fn list_files(
         .await
     {
         Ok(entries) => Json(entries).into_response(),
-        Err(error) => runtime_error(StatusCode::NOT_FOUND, error.code(), &error.to_string()),
+        Err(error) => runtime_error(file_error_status(&error), error.code(), &error.to_string()),
     }
 }
 
@@ -286,7 +292,7 @@ async fn read_file(
     };
     match state.files.read(&path).await {
         Ok(body) => (StatusCode::OK, body).into_response(),
-        Err(error) => runtime_error(StatusCode::NOT_FOUND, error.code(), &error.to_string()),
+        Err(error) => runtime_error(file_error_status(&error), error.code(), &error.to_string()),
     }
 }
 
@@ -304,7 +310,7 @@ async fn write_file(
     };
     match state.files.write(&path, &body).await {
         Ok(entry) => Json(entry).into_response(),
-        Err(error) => runtime_error(StatusCode::BAD_REQUEST, error.code(), &error.to_string()),
+        Err(error) => runtime_error(file_error_status(&error), error.code(), &error.to_string()),
     }
 }
 
@@ -321,7 +327,7 @@ async fn delete_file(
     };
     match state.files.delete(&path).await {
         Ok(()) => StatusCode::NO_CONTENT.into_response(),
-        Err(error) => runtime_error(StatusCode::NOT_FOUND, error.code(), &error.to_string()),
+        Err(error) => runtime_error(file_error_status(&error), error.code(), &error.to_string()),
     }
 }
 
@@ -383,4 +389,18 @@ fn runtime_error(status: StatusCode, code: &str, message: &str) -> Response {
         }),
     )
         .into_response()
+}
+
+fn file_error_status(error: &FileError) -> StatusCode {
+    match error {
+        FileError::Path(_) => StatusCode::BAD_REQUEST,
+        FileError::NotFound => StatusCode::NOT_FOUND,
+        FileError::BodyTooLarge { .. } | FileError::TooManyEntries => {
+            StatusCode::PAYLOAD_TOO_LARGE
+        }
+        FileError::IsDirectory
+        | FileError::NotDirectory
+        | FileError::DirectoryNotEmpty
+        | FileError::Filesystem(_) => StatusCode::BAD_REQUEST,
+    }
 }

@@ -18,6 +18,7 @@
     "validate:contracts": "tsx scripts/validate-contracts.ts",
     "test": "turbo run test",
     "test:integration": "node --import tsx/esm tests/integration/client-journey.test.ts",
+    "test:security": "node tests/security/boundaries.test.mjs",
     "typecheck:integration": "./integrations/mcp/node_modules/.bin/tsc --noEmit -p tests/integration/tsconfig.json",
     "typecheck": "turbo run typecheck",
     "check:repo": "./scripts/check-repo.sh",

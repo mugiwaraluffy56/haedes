@@ -1,8 +1,13 @@
 use axum::{
-    body::to_bytes,
+    body::{to_bytes, Body},
     http::{Request, StatusCode},
 };
-use haedes_sandbox_runtime::{config::Config, server::build_router};
+use haedes_sandbox_runtime::{
+    config::Config,
+    filesystem::DEFAULT_MAX_FILE_BYTES,
+    server::build_router,
+    snapshot::MAX_ARCHIVE_BYTES,
+};
 use serde_json::Value;
 use tempfile::tempdir;
 use tower::ServiceExt;
@@ -107,4 +112,33 @@ async fn missing_workspace_is_reported_unhealthy() {
     let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
     let json: Value = serde_json::from_slice(&body).unwrap();
     assert_eq!(json["workspaceAvailable"], false);
+}
+
+#[tokio::test]
+async fn file_and_archive_requests_enforce_explicit_body_limits() {
+    let router = test_router().await;
+    let file_body = vec![b'x'; DEFAULT_MAX_FILE_BYTES + 1];
+    let response = router
+        .clone()
+        .oneshot(
+            Request::put("/v1/files/content?path=/workspace/large.txt")
+                .header("authorization", "Bearer test-runtime-token")
+                .body(Body::from(file_body))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+
+    let archive_body = vec![b'x'; MAX_ARCHIVE_BYTES + 1];
+    let response = router
+        .oneshot(
+            Request::put("/v1/snapshot/restore")
+                .header("authorization", "Bearer test-runtime-token")
+                .body(Body::from(archive_body))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
 }
