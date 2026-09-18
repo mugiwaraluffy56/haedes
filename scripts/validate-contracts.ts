@@ -110,9 +110,13 @@ for (const [schemaName, fixtureName] of [['sandbox', 'sandbox'], ['command', 'co
 }
 
 const mcpContract = readJson('integrations/mcp/src/tool-contract.schema.json');
-const expectedTools = ['create_sandbox', 'execute_command', 'stream_command', 'list_files', 'read_file', 'write_file', 'delete_file', 'create_snapshot', 'restore_snapshot', 'destroy_sandbox'];
+const expectedTools = [
+  'sandbox_create', 'sandbox_get', 'sandbox_list', 'sandbox_exec', 'sandbox_exec_stream',
+  'sandbox_read_file', 'sandbox_write_file', 'sandbox_list_files', 'sandbox_delete_file',
+  'sandbox_snapshot', 'sandbox_restore', 'sandbox_destroy',
+];
 assert(JSON.stringify(mcpContract.tools?.map((tool: { name: string }) => tool.name)) === JSON.stringify(expectedTools), 'MCP tool names must match the public platform surface');
-const publicReferencePrefix = `${PUBLIC_SCHEMA_ID}#/components/`;
+const mcpReferencePrefix = '#/$defs/';
 const references: string[] = [];
 const collectReferences = (value: unknown) => {
   if (Array.isArray(value)) {
@@ -125,11 +129,11 @@ const collectReferences = (value: unknown) => {
   }
 };
 collectReferences(mcpContract.tools);
-for (const reference of references) assert(reference.startsWith(publicReferencePrefix), `MCP schema must reference canonical public types: ${reference}`);
+for (const reference of references) assert(reference.startsWith(mcpReferencePrefix), `MCP schema must reference the local MCP definitions: ${reference}`);
 for (const tool of mcpContract.tools ?? []) {
   try {
-    ajv.compile(tool.inputSchema);
-    ajv.compile(tool.resultSchema);
+    ajv.compile({ ...tool.inputSchema, $defs: mcpContract.$defs });
+    ajv.compile({ ...tool.resultSchema, $defs: mcpContract.$defs });
   } catch (error) {
     failures.push(`MCP ${tool.name}: schema compilation failed: ${error instanceof Error ? error.message : String(error)}`);
   }

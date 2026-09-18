@@ -25,6 +25,21 @@ export interface DashboardError {
   status?: number;
 }
 
+export interface DashboardClientConfig {
+  baseUrl: string;
+  apiKey: string;
+  fetch?: typeof fetch;
+}
+
+export interface DashboardApi {
+  listSandboxes(): Promise<Page<Sandbox>>;
+  getSandbox(id: string): Promise<Sandbox>;
+  getSandboxHandle(id: string): Promise<SandboxHandle>;
+  createSnapshot(id: string): Promise<SnapshotMetadata>;
+  restoreSnapshot(snapshotId: string): Promise<Sandbox>;
+  destroySandbox(id: string): Promise<Sandbox>;
+}
+
 export function isNonTerminal(state: SandboxState): boolean {
   return nonTerminalStates.includes(state);
 }
@@ -44,7 +59,19 @@ export function toDashboardError(error: unknown): DashboardError {
   return { message: 'The dashboard could not reach the sandbox API.' };
 }
 
-function createClient(): SandboxClient {
+export function createDashboardApi(config: DashboardClientConfig): DashboardApi {
+  const client = new SandboxClient(config);
+  return {
+    listSandboxes: () => client.sandboxes.list({ limit: 100 }),
+    getSandbox: async (id) => (await client.sandboxes.get(id)).get(),
+    getSandboxHandle: (id) => client.sandboxes.get(id),
+    createSnapshot: async (id) => (await client.sandboxes.get(id)).snapshot(),
+    restoreSnapshot: async (snapshotId) => (await client.sandboxes.create({ snapshotId })).get(),
+    destroySandbox: async (id) => (await client.sandboxes.get(id)).destroy(),
+  };
+}
+
+function configuredDashboardApi(): DashboardApi {
   const baseUrl = process.env.NEXT_PUBLIC_HAEDES_API_URL;
   const apiKey = process.env.NEXT_PUBLIC_HAEDES_API_KEY;
   if (!baseUrl || !apiKey) {
@@ -52,31 +79,29 @@ function createClient(): SandboxClient {
       'Configure NEXT_PUBLIC_HAEDES_API_URL and NEXT_PUBLIC_HAEDES_API_KEY before using the dashboard.',
     );
   }
-  return new SandboxClient({ baseUrl, apiKey });
+  return createDashboardApi({ baseUrl, apiKey });
 }
 
 export async function listSandboxes(): Promise<Page<Sandbox>> {
-  return createClient().sandboxes.list({ limit: 100 });
+  return configuredDashboardApi().listSandboxes();
 }
 
 export async function getSandbox(id: string): Promise<Sandbox> {
-  const handle = await createClient().sandboxes.get(id);
-  return handle.get();
+  return configuredDashboardApi().getSandbox(id);
 }
 
 export async function getSandboxHandle(id: string): Promise<SandboxHandle> {
-  return createClient().sandboxes.get(id);
+  return configuredDashboardApi().getSandboxHandle(id);
 }
 
 export async function createSnapshot(id: string): Promise<SnapshotMetadata> {
-  return (await getSandboxHandle(id)).snapshot();
+  return configuredDashboardApi().createSnapshot(id);
 }
 
 export async function restoreSnapshot(snapshotId: string): Promise<Sandbox> {
-  const handle = await createClient().sandboxes.create({ snapshotId });
-  return handle.get();
+  return configuredDashboardApi().restoreSnapshot(snapshotId);
 }
 
-export async function destroySandbox(id: string): Promise<void> {
-  await (await getSandboxHandle(id)).destroy();
+export async function destroySandbox(id: string): Promise<Sandbox> {
+  return configuredDashboardApi().destroySandbox(id);
 }

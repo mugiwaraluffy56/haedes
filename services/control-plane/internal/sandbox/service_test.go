@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"testing"
 	"time"
@@ -88,9 +89,10 @@ func (compute *fakeCompute) Describe(_ context.Context, taskARN string) (TaskSta
 }
 
 type fakeRuntime struct {
-	readyError  error
-	startCalls  int
-	lastRequest CommandRequest
+	readyError   error
+	startCalls   int
+	restoreCalls int
+	lastRequest  CommandRequest
 }
 
 func (runtime *fakeRuntime) WaitReady(_ context.Context, _, _ string) error {
@@ -118,7 +120,57 @@ func (runtime *fakeRuntime) ExportWorkspace(_ context.Context, _, _ string) (io.
 	return io.NopCloser(bytes.NewReader(nil)), ArchiveInfo{}, nil
 }
 func (runtime *fakeRuntime) RestoreWorkspace(_ context.Context, _, _ string, _ io.Reader) error {
+	runtime.restoreCalls++
 	return nil
+}
+
+type sequenceIDs struct{ sandbox int }
+
+func (ids *sequenceIDs) NewSandboxID() SandboxID {
+	ids.sandbox++
+	return SandboxID(fmt.Sprintf("sbx_test_%d", ids.sandbox))
+}
+func (ids *sequenceIDs) NewCommandID() CommandID   { return "cmd_test" }
+func (ids *sequenceIDs) NewSnapshotID() SnapshotID { return "snp_test" }
+func (ids *sequenceIDs) NewRuntimeToken() string   { return "runtime-token" }
+
+type testSnapshotRepository struct {
+	values map[SnapshotID]SnapshotMetadata
+}
+
+func (repository *testSnapshotRepository) Create(_ context.Context, snapshot SnapshotMetadata) error {
+	repository.values[snapshot.ID] = snapshot
+	return nil
+}
+func (repository *testSnapshotRepository) Get(_ context.Context, id SnapshotID) (SnapshotMetadata, error) {
+	snapshot, ok := repository.values[id]
+	if !ok {
+		return SnapshotMetadata{}, ErrNotFound
+	}
+	return snapshot, nil
+}
+func (repository *testSnapshotRepository) List(_ context.Context, _ SandboxID, _ string, _ int) (Page[SnapshotMetadata], error) {
+	return Page[SnapshotMetadata]{}, nil
+}
+func (repository *testSnapshotRepository) Update(_ context.Context, snapshot SnapshotMetadata) error {
+	repository.values[snapshot.ID] = snapshot
+	return nil
+}
+func (repository *testSnapshotRepository) UpdateState(_ context.Context, id SnapshotID, _, next string) error {
+	snapshot := repository.values[id]
+	snapshot.State = next
+	repository.values[id] = snapshot
+	return nil
+}
+
+type testSnapshotStore struct{ archive []byte }
+
+func (store *testSnapshotStore) Put(_ context.Context, _ SnapshotID, archive io.Reader, _ ArchiveInfo) (ArchiveInfo, error) {
+	store.archive, _ = io.ReadAll(archive)
+	return ArchiveInfo{ByteSize: int64(len(store.archive))}, nil
+}
+func (store *testSnapshotStore) Open(_ context.Context, _ SnapshotID) (io.ReadCloser, ArchiveInfo, error) {
+	return io.NopCloser(bytes.NewReader(store.archive)), ArchiveInfo{ByteSize: int64(len(store.archive))}, nil
 }
 
 func testService(repository *memoryRepository, compute *fakeCompute, runtime *fakeRuntime) *Service {
@@ -162,6 +214,37 @@ func TestCreateStopsTaskWhenRuntimeReadinessFails(t *testing.T) {
 	sandbox := repository.sandboxes["sbx_test"]
 	if sandbox.State != StateFailed {
 		t.Fatalf("persisted state = %q, want failed", sandbox.State)
+	}
+}
+
+func TestCreateRestoresSnapshotIntoFreshSandbox(t *testing.T) {
+	repository := newMemoryRepository()
+	compute := &fakeCompute{task: TaskRef{ARN: "task-1", Endpoint: "http://runtime", RuntimeToken: "runtime-token"}}
+	runtime := &fakeRuntime{}
+	snapshots := &testSnapshotRepository{values: make(map[SnapshotID]SnapshotMetadata)}
+	store := &testSnapshotStore{archive: []byte("snapshot")}
+	service := NewService(Dependencies{
+		Repository:    repository,
+		Compute:       compute,
+		Runtime:       runtime,
+		Snapshots:     snapshots,
+		SnapshotStore: store,
+		IDs:           &sequenceIDs{},
+		Clock:         fixedClock{now: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)},
+	})
+	original, err := service.Create(context.Background(), "owner-1", testConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
+	snapshots.values["snp_source"] = SnapshotMetadata{ID: "snp_source", SandboxID: original.ID, State: "available"}
+	config := testConfig()
+	config.SnapshotID = func() *SnapshotID { value := SnapshotID("snp_source"); return &value }()
+	restored, err := service.Create(context.Background(), "owner-1", config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if restored.ID == original.ID || runtime.restoreCalls != 1 {
+		t.Fatalf("restored sandbox = %+v, original = %+v, restore calls = %d", restored, original, runtime.restoreCalls)
 	}
 }
 

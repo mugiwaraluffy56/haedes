@@ -1,6 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if [[ "${AWS_INTEGRATION_TESTS:-false}" != "true" ]]; then
+  echo "AWS smoke test skipped; set AWS_INTEGRATION_TESTS=true to opt in"
+  exit 0
+fi
+
+if [[ "${HAEDES_ENV:-}" != "development" && "${HAEDES_ENV:-}" != "test" ]]; then
+  echo "AWS smoke tests require HAEDES_ENV=development or HAEDES_ENV=test" >&2
+  exit 1
+fi
+
 api_base_url="${HAEDES_API_BASE_URL:?Set HAEDES_API_BASE_URL to the deployed control-plane URL}"
 api_key="${HAEDES_API_KEY:?Set HAEDES_API_KEY to a deployed API key}"
 image="${HAEDES_SANDBOX_IMAGE:-haedes-sandbox-dev:dev}"

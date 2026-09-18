@@ -99,6 +99,13 @@ func (service *Service) Create(ctx context.Context, ownerID string, config Sandb
 		_ = service.compute.Stop(ctx, task.ARN)
 		return Sandbox{}, err
 	}
+	if config.SnapshotID != nil {
+		if err := service.Restore(ctx, ownerID, sandbox.ID, *config.SnapshotID); err != nil {
+			_ = service.compute.Stop(ctx, task.ARN)
+			service.fail(ctx, &sandbox, err)
+			return Sandbox{}, err
+		}
+	}
 	return sandbox, nil
 }
 
