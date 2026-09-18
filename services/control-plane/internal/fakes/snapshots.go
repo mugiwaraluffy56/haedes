@@ -5,6 +5,8 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"sort"
+	"strconv"
 	"sync"
 
 	"github.com/mugiwaraluffy56/haedes/services/control-plane/internal/sandbox"
@@ -45,6 +47,57 @@ func (repository *SnapshotRepository) Get(ctx context.Context, id sandbox.Snapsh
 		return sandbox.SnapshotMetadata{}, sandbox.ErrNotFound
 	}
 	return snapshot, nil
+}
+
+func (repository *SnapshotRepository) List(ctx context.Context, sandboxID sandbox.SandboxID, cursor string, limit int) (sandbox.Page[sandbox.SnapshotMetadata], error) {
+	if err := ctx.Err(); err != nil {
+		return sandbox.Page[sandbox.SnapshotMetadata]{}, err
+	}
+	if limit <= 0 {
+		return sandbox.Page[sandbox.SnapshotMetadata]{}, fmt.Errorf("limit must be positive")
+	}
+	start := 0
+	if cursor != "" {
+		parsed, err := strconv.Atoi(cursor)
+		if err != nil || parsed < 0 {
+			return sandbox.Page[sandbox.SnapshotMetadata]{}, fmt.Errorf("invalid cursor")
+		}
+		start = parsed
+	}
+	repository.mu.RLock()
+	items := make([]sandbox.SnapshotMetadata, 0, len(repository.snapshots))
+	for _, snapshot := range repository.snapshots {
+		if snapshot.SandboxID == sandboxID {
+			items = append(items, snapshot)
+		}
+	}
+	repository.mu.RUnlock()
+	sort.Slice(items, func(i, j int) bool { return items[i].ID < items[j].ID })
+	if start >= len(items) {
+		return sandbox.Page[sandbox.SnapshotMetadata]{}, nil
+	}
+	end := start + limit
+	if end > len(items) {
+		end = len(items)
+	}
+	page := sandbox.Page[sandbox.SnapshotMetadata]{Items: items[start:end]}
+	if end < len(items) {
+		page.NextCursor = strconv.Itoa(end)
+	}
+	return page, nil
+}
+
+func (repository *SnapshotRepository) Update(ctx context.Context, snapshot sandbox.SnapshotMetadata) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	repository.mu.Lock()
+	defer repository.mu.Unlock()
+	if _, exists := repository.snapshots[snapshot.ID]; !exists {
+		return sandbox.ErrNotFound
+	}
+	repository.snapshots[snapshot.ID] = snapshot
+	return nil
 }
 
 func (repository *SnapshotRepository) UpdateState(ctx context.Context, id sandbox.SnapshotID, expected, next string) error {
@@ -101,10 +154,10 @@ func (store *ObjectStore) Put(ctx context.Context, id sandbox.SnapshotID, archiv
 	}
 	actual := archiveInfo(body)
 	if info.ByteSize != 0 && info.ByteSize != actual.ByteSize {
-		return sandbox.ArchiveInfo{}, fmt.Errorf("archive byte size mismatch")
+		return sandbox.ArchiveInfo{}, fmt.Errorf("%w: archive byte size mismatch", sandbox.ErrSnapshotChecksumMismatch)
 	}
 	if info.SHA256 != "" && info.SHA256 != actual.SHA256 {
-		return sandbox.ArchiveInfo{}, fmt.Errorf("archive checksum mismatch")
+		return sandbox.ArchiveInfo{}, fmt.Errorf("%w: archive checksum mismatch", sandbox.ErrSnapshotChecksumMismatch)
 	}
 	if info.MediaType != "" {
 		actual.MediaType = info.MediaType

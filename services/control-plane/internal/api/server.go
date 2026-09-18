@@ -34,16 +34,18 @@ func (err payloadTooLargeError) Error() string { return err.message }
 var (
 	sandboxIDPattern   = regexp.MustCompile(`^sbx_[A-Za-z0-9_-]+$`)
 	commandIDPattern   = regexp.MustCompile(`^cmd_[A-Za-z0-9_-]+$`)
+	snapshotIDPattern  = regexp.MustCompile(`^snp_[A-Za-z0-9_-]+$`)
 	idempotencyPattern = regexp.MustCompile(`^[A-Za-z0-9._:-]{1,128}$`)
 )
 
 type principalKey struct{}
 
 type Server struct {
-	service           *sandbox.Service
-	auth              sandbox.AuthService
-	idempotency       *idempotencyStore
-	heartbeatInterval time.Duration
+	service             *sandbox.Service
+	auth                sandbox.AuthService
+	idempotency         *idempotencyStore
+	snapshotIdempotency *snapshotIdempotencyStore
+	heartbeatInterval   time.Duration
 }
 
 func NewServer(service *sandbox.Service, authentication sandbox.AuthService) *Server {
@@ -55,10 +57,11 @@ func NewServerWithHeartbeat(service *sandbox.Service, authentication sandbox.Aut
 		heartbeatInterval = 15 * time.Second
 	}
 	return &Server{
-		service:           service,
-		auth:              authentication,
-		idempotency:       &idempotencyStore{entries: make(map[string]idempotencyEntry)},
-		heartbeatInterval: heartbeatInterval,
+		service:             service,
+		auth:                authentication,
+		idempotency:         &idempotencyStore{entries: make(map[string]idempotencyEntry)},
+		snapshotIdempotency: &snapshotIdempotencyStore{entries: make(map[string]snapshotIdempotencyEntry)},
+		heartbeatInterval:   heartbeatInterval,
 	}
 }
 
@@ -81,7 +84,7 @@ func PrincipalFromContext(ctx context.Context) (sandbox.Principal, bool) {
 
 func (server *Server) route(writer http.ResponseWriter, request *http.Request) {
 	segments := strings.Split(strings.Trim(request.URL.Path, "/"), "/")
-	if len(segments) < 2 || segments[0] != "v1" || segments[1] != "sandboxes" {
+	if len(segments) < 2 || segments[0] != "v1" || (segments[1] != "sandboxes" && segments[1] != "snapshots") {
 		server.writeError(writer, request, http.StatusNotFound, "not_found", "Resource was not found.", nil)
 		return
 	}
@@ -102,6 +105,15 @@ func (server *Server) route(writer http.ResponseWriter, request *http.Request) {
 		server.streamCommandEvents(writer, request, principal, segments[2], segments[4])
 	case len(segments) == 4 && segments[3] == "files" && request.Method == http.MethodGet:
 		server.listFiles(writer, request, principal, segments[2])
+	case len(segments) == 4 && segments[3] == "snapshots":
+		switch request.Method {
+		case http.MethodPost:
+			server.createSnapshot(writer, request, principal, segments[2])
+		case http.MethodGet:
+			server.listSnapshots(writer, request, principal, segments[2])
+		default:
+			server.writeError(writer, request, http.StatusNotFound, "not_found", "Resource was not found.", nil)
+		}
 	case len(segments) == 5 && segments[3] == "files" && segments[4] == "content":
 		switch request.Method {
 		case http.MethodGet:
@@ -113,6 +125,10 @@ func (server *Server) route(writer http.ResponseWriter, request *http.Request) {
 		default:
 			server.writeError(writer, request, http.StatusNotFound, "not_found", "Resource was not found.", nil)
 		}
+	case len(segments) == 3 && segments[1] == "snapshots" && request.Method == http.MethodGet:
+		server.getSnapshot(writer, request, principal, segments[2])
+	case len(segments) == 4 && segments[3] == "restore" && request.Method == http.MethodPost:
+		server.restoreSnapshot(writer, request, principal, segments[2])
 	case len(segments) == 3 && request.Method == http.MethodGet:
 		server.getSandbox(writer, request, principal, segments[2])
 	case len(segments) == 3 && request.Method == http.MethodDelete:
@@ -251,6 +267,128 @@ func (server *Server) destroySandbox(writer http.ResponseWriter, request *http.R
 	server.writeJSON(writer, http.StatusAccepted, toContractSandbox(value))
 }
 
+func (server *Server) createSnapshot(writer http.ResponseWriter, request *http.Request, principal sandbox.Principal, id string) {
+	sandboxID, ok := parseSandboxID(id)
+	if !ok {
+		server.writeError(writer, request, http.StatusNotFound, "not_found", "Sandbox was not found.", nil)
+		return
+	}
+	var input contracts.SnapshotCreateRequest
+	if err := decodeOptionalJSON(writer, request, &input, maxCreateBody); err != nil {
+		server.writeValidationError(writer, request, err)
+		return
+	}
+	idempotencyKey := request.Header.Get("Idempotency-Key")
+	if !idempotencyPattern.MatchString(idempotencyKey) {
+		server.writeError(writer, request, http.StatusBadRequest, "invalid_request", "Idempotency-Key must contain 1 to 128 safe characters.", nil)
+		return
+	}
+	fingerprint, _ := json.Marshal(input)
+	snapshot, err := server.snapshotIdempotency.do(principal.OwnerID, idempotencyKey, fingerprint, func() (sandbox.SnapshotMetadata, error) {
+		if server.service == nil {
+			return sandbox.SnapshotMetadata{}, errors.New("sandbox service is unavailable")
+		}
+		return server.service.CreateSnapshot(request.Context(), principal.OwnerID, sandboxID, input.ExpiresAt)
+	})
+	if errors.Is(err, errIdempotencyConflict) {
+		server.writeError(writer, request, http.StatusConflict, "idempotency_conflict", "Idempotency-Key was already used with a different request.", nil)
+		return
+	}
+	if err != nil {
+		server.writeServiceError(writer, request, err)
+		return
+	}
+	writer.Header().Set("Location", snapshotPath(snapshot.ID))
+	server.writeJSON(writer, http.StatusAccepted, toContractSnapshot(snapshot))
+}
+
+func (server *Server) listSnapshots(writer http.ResponseWriter, request *http.Request, principal sandbox.Principal, id string) {
+	sandboxID, ok := parseSandboxID(id)
+	if !ok {
+		server.writeError(writer, request, http.StatusNotFound, "not_found", "Sandbox was not found.", nil)
+		return
+	}
+	limit, err := queryLimit(request.URL.Query().Get("limit"))
+	if err != nil {
+		server.writeError(writer, request, http.StatusBadRequest, "invalid_request", err.Error(), nil)
+		return
+	}
+	cursor := request.URL.Query().Get("cursor")
+	if len(cursor) > 512 {
+		server.writeError(writer, request, http.StatusBadRequest, "invalid_request", "cursor must be at most 512 characters.", nil)
+		return
+	}
+	if server.service == nil {
+		server.writeError(writer, request, http.StatusInternalServerError, "internal_error", "The request could not be completed.", nil)
+		return
+	}
+	page, err := server.service.ListSnapshots(request.Context(), principal.OwnerID, sandboxID, cursor, limit)
+	if err != nil {
+		server.writeServiceError(writer, request, err)
+		return
+	}
+	items := make([]contracts.SnapshotMetadata, len(page.Items))
+	for index, snapshot := range page.Items {
+		items[index] = toContractSnapshot(snapshot)
+	}
+	response := contracts.SnapshotPage{Items: items, Page: contracts.PageInfo{HasMore: page.NextCursor != ""}}
+	if page.NextCursor != "" {
+		response.Page.NextCursor = &page.NextCursor
+	}
+	server.writeJSON(writer, http.StatusOK, response)
+}
+
+func (server *Server) getSnapshot(writer http.ResponseWriter, request *http.Request, principal sandbox.Principal, id string) {
+	snapshotID, ok := parseSnapshotID(id)
+	if !ok {
+		server.writeError(writer, request, http.StatusNotFound, "not_found", "Snapshot was not found.", nil)
+		return
+	}
+	if server.service == nil {
+		server.writeError(writer, request, http.StatusInternalServerError, "internal_error", "The request could not be completed.", nil)
+		return
+	}
+	snapshot, err := server.service.GetSnapshot(request.Context(), principal.OwnerID, snapshotID)
+	if err != nil {
+		server.writeServiceError(writer, request, err)
+		return
+	}
+	server.writeJSON(writer, http.StatusOK, toContractSnapshot(snapshot))
+}
+
+func (server *Server) restoreSnapshot(writer http.ResponseWriter, request *http.Request, principal sandbox.Principal, id string) {
+	sandboxID, ok := parseSandboxID(id)
+	if !ok {
+		server.writeError(writer, request, http.StatusNotFound, "not_found", "Sandbox was not found.", nil)
+		return
+	}
+	var input contracts.RestoreRequest
+	if err := decodeJSON(writer, request, &input, maxCreateBody); err != nil {
+		server.writeValidationError(writer, request, err)
+		return
+	}
+	snapshotID, ok := parseSnapshotID(input.SnapshotID)
+	if !ok {
+		server.writeError(writer, request, http.StatusBadRequest, "invalid_request", "snapshotId is invalid.", nil)
+		return
+	}
+	if server.service == nil {
+		server.writeError(writer, request, http.StatusInternalServerError, "internal_error", "The request could not be completed.", nil)
+		return
+	}
+	if err := server.service.Restore(request.Context(), principal.OwnerID, sandboxID, snapshotID); err != nil {
+		server.writeServiceError(writer, request, err)
+		return
+	}
+	value, err := server.service.Get(request.Context(), principal.OwnerID, sandboxID)
+	if err != nil {
+		server.writeServiceError(writer, request, err)
+		return
+	}
+	writer.Header().Set("Location", sandboxPath(value.ID))
+	server.writeJSON(writer, http.StatusAccepted, toContractSandbox(value))
+}
+
 func decodeJSON(writer http.ResponseWriter, request *http.Request, destination any, maxBytes int64) error {
 	request.Body = http.MaxBytesReader(writer, request.Body, maxBytes)
 	decoder := json.NewDecoder(request.Body)
@@ -267,6 +405,13 @@ func decodeJSON(writer http.ResponseWriter, request *http.Request, destination a
 		return errors.New("request body must contain one JSON value")
 	}
 	return nil
+}
+
+func decodeOptionalJSON(writer http.ResponseWriter, request *http.Request, destination any, maxBytes int64) error {
+	if request.Body == nil || request.Body == http.NoBody || request.ContentLength == 0 {
+		return nil
+	}
+	return decodeJSON(writer, request, destination, maxBytes)
 }
 
 func (server *Server) writeValidationError(writer http.ResponseWriter, request *http.Request, err error) {
@@ -372,6 +517,10 @@ func parseSandboxID(value string) (sandbox.SandboxID, bool) {
 	return sandbox.SandboxID(value), sandboxIDPattern.MatchString(value)
 }
 
+func parseSnapshotID(value string) (sandbox.SnapshotID, bool) {
+	return sandbox.SnapshotID(value), snapshotIDPattern.MatchString(value)
+}
+
 func validState(value sandbox.State) bool {
 	switch value {
 	case sandbox.StateRequested, sandbox.StateProvisioning, sandbox.StateStarting, sandbox.StateRunning, sandbox.StateSnapshotting, sandbox.StateStopping, sandbox.StateStopped, sandbox.StateFailed, sandbox.StateDestroyed:
@@ -447,6 +596,31 @@ func toContractSnapshotIDs(values []sandbox.SnapshotID) []contracts.SnapshotID {
 
 func sandboxPath(id sandbox.SandboxID) string { return "/v1/sandboxes/" + url.PathEscape(string(id)) }
 
+func snapshotPath(id sandbox.SnapshotID) string { return "/v1/snapshots/" + url.PathEscape(string(id)) }
+
+func toContractSnapshot(value sandbox.SnapshotMetadata) contracts.SnapshotMetadata {
+	result := contracts.SnapshotMetadata{
+		ID:        contracts.SnapshotID(value.ID),
+		SandboxID: contracts.SandboxID(value.SandboxID),
+		State:     value.State,
+		ObjectKey: value.ObjectKey,
+		CreatedAt: value.CreatedAt.UTC(),
+	}
+	if value.ByteSize >= 0 {
+		byteSize := int32(value.ByteSize)
+		result.ByteSize = &byteSize
+	}
+	if value.SHA256 != "" {
+		checksum := value.SHA256
+		result.Checksum = &checksum
+	}
+	if value.ExpiresAt != nil {
+		expiresAt := value.ExpiresAt.UTC()
+		result.ExpiresAt = &expiresAt
+	}
+	return result
+}
+
 func (server *Server) writeServiceError(writer http.ResponseWriter, request *http.Request, err error) {
 	status, code, message, details := serviceError(err)
 	server.writeError(writer, request, status, code, message, details)
@@ -458,6 +632,15 @@ func serviceError(err error) (int, string, string, map[string]any) {
 	}
 	if errors.Is(err, sandbox.ErrNotRunning) {
 		return http.StatusConflict, "state_conflict", "Sandbox is not running.", nil
+	}
+	if errors.Is(err, sandbox.ErrSnapshotChecksumMismatch) {
+		return http.StatusConflict, "snapshot_checksum_mismatch", "Snapshot archive verification failed.", nil
+	}
+	if errors.Is(err, sandbox.ErrSnapshotExpired) {
+		return http.StatusConflict, "snapshot_expired", "Snapshot metadata has expired.", nil
+	}
+	if errors.Is(err, sandbox.ErrSnapshotUnavailable) {
+		return http.StatusConflict, "snapshot_unavailable", "Snapshot is not available.", nil
 	}
 	var transition sandbox.InvalidStateTransition
 	if errors.As(err, &transition) {
@@ -508,5 +691,34 @@ func (store *idempotencyStore) do(ownerID, key string, request []byte, create fu
 		return sandbox.Sandbox{}, err
 	}
 	store.entries[entryKey] = idempotencyEntry{fingerprint: append([]byte(nil), fingerprint[:]...), value: value}
+	return value, nil
+}
+
+type snapshotIdempotencyEntry struct {
+	fingerprint []byte
+	value       sandbox.SnapshotMetadata
+}
+
+type snapshotIdempotencyStore struct {
+	mu      sync.Mutex
+	entries map[string]snapshotIdempotencyEntry
+}
+
+func (store *snapshotIdempotencyStore) do(ownerID, key string, request []byte, create func() (sandbox.SnapshotMetadata, error)) (sandbox.SnapshotMetadata, error) {
+	fingerprint := sha256.Sum256(request)
+	entryKey := ownerID + "\x00" + key
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	if entry, ok := store.entries[entryKey]; ok {
+		if string(entry.fingerprint) != string(fingerprint[:]) {
+			return sandbox.SnapshotMetadata{}, errIdempotencyConflict
+		}
+		return entry.value, nil
+	}
+	value, err := create()
+	if err != nil {
+		return sandbox.SnapshotMetadata{}, err
+	}
+	store.entries[entryKey] = snapshotIdempotencyEntry{fingerprint: append([]byte(nil), fingerprint[:]...), value: value}
 	return value, nil
 }
