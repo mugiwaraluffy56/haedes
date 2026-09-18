@@ -38,6 +38,9 @@ jobs:
           toolchain: 1.80.1
           components: rustfmt, clippy
 
+      - name: Install repository utilities
+        run: sudo apt-get update && sudo apt-get install --no-install-recommends --yes ripgrep
+
       - uses: actions/cache@v4
         with:
           path: |

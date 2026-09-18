@@ -32,7 +32,7 @@ jobs:
           toolchain: 1.80.1
 
       - run: pnpm install --frozen-lockfile
-      - run: cargo install cargo-audit --locked
+      - run: cargo install cargo-audit --version 0.21.1 --locked
       - run: make check-dependencies
       - run: pnpm test:security
       - run: pnpm test:load
