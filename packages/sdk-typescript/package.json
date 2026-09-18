@@ -3,10 +3,22 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
   "scripts": {
-    "build": "node -e \"process.exit(0)\"",
+    "build": "pnpm exec tsc",
     "lint": "node -e \"process.exit(0)\"",
-    "test": "node -e \"process.exit(0)\"",
-    "typecheck": "node -e \"process.exit(0)\""
+    "test": "node --import tsx/esm test/client.test.ts && node --import tsx/esm test/sandbox.test.ts && node --import tsx/esm test/events.test.ts && node --import tsx/esm test/errors.test.ts",
+    "typecheck": "pnpm exec tsc --noEmit"
+  },
+  "dependencies": {
+    "@haedes/api-types": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
   }
 }

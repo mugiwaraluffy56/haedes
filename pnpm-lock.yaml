@@ -41,7 +41,15 @@ importers:
 
   packages/protocol: {}
 
-  packages/sdk-typescript: {}
+  packages/sdk-typescript:
+    dependencies:
+      '@haedes/api-types':
+        specifier: workspace:*
+        version: link:../api-types
+    devDependencies:
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
 
   packages/shared-config: {}
 
