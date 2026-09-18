@@ -6,7 +6,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "lint": "node -e \"process.exit(0)\"",
-    "test": "node --import tsx/esm test/errors.test.ts && node --import tsx/esm test/platform-tools.test.ts && node --import tsx/esm test/tools.test.ts && node --import tsx/esm test/validation.test.ts && node --import tsx/esm test/server.test.ts",
+    "test": "node --import tsx/esm test/errors.test.ts && node --import tsx/esm test/fake-control-plane.test.ts && node --import tsx/esm test/platform-tools.test.ts && node --import tsx/esm test/tools.test.ts && node --import tsx/esm test/validation.test.ts && node --import tsx/esm test/server.test.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
