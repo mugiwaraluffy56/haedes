@@ -52,6 +52,17 @@ async fn commands_use_workspace_cwd_and_injected_environment() {
 }
 
 #[tokio::test]
+async fn commands_do_not_inherit_cloud_credentials() {
+    let (_workspace, runner) = runner();
+    let result = runner
+        .run(request("printf '%s:%s' \"${AWS_ACCESS_KEY_ID-unset}\" \"${AWS_PROFILE-unset}\""))
+        .await
+        .unwrap();
+
+    assert_eq!(result.stdout, b"unset:unset");
+}
+
+#[tokio::test]
 async fn command_timeout_terminates_the_process_group() {
     let (_workspace, runner) = runner();
     let mut command = request("sleep 10 & wait");
@@ -63,6 +74,21 @@ async fn command_timeout_terminates_the_process_group() {
     assert!(result.timed_out);
     assert!(result.exit_code.is_none());
     assert!(started.elapsed() < Duration::from_secs(2));
+}
+
+#[tokio::test]
+async fn command_timeout_terminates_descendants() {
+    let (workspace, runner) = runner();
+    let mut command = request(
+        "(sleep 1; touch descendant-marker) & child=$!; printf '%s' \"$child\" > descendant.pid; wait",
+    );
+    command.timeout = Duration::from_millis(100);
+
+    let result = runner.run(command).await.unwrap();
+    assert!(result.timed_out);
+
+    tokio::time::sleep(Duration::from_millis(1200)).await;
+    assert!(!workspace.path().join("descendant-marker").exists());
 }
 
 #[tokio::test]
