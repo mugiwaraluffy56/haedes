@@ -17,6 +17,7 @@ import (
 
 	"github.com/mugiwaraluffy56/haedes/services/control-plane/internal/auth"
 	"github.com/mugiwaraluffy56/haedes/services/control-plane/internal/contracts"
+	"github.com/mugiwaraluffy56/haedes/services/control-plane/internal/metrics"
 	"github.com/mugiwaraluffy56/haedes/services/control-plane/internal/requestid"
 	"github.com/mugiwaraluffy56/haedes/services/control-plane/internal/sandbox"
 )
@@ -46,6 +47,7 @@ type Server struct {
 	idempotency         *idempotencyStore
 	snapshotIdempotency *snapshotIdempotencyStore
 	heartbeatInterval   time.Duration
+	metrics             *metrics.Registry
 }
 
 func NewServer(service *sandbox.Service, authentication sandbox.AuthService) *Server {
@@ -62,6 +64,7 @@ func NewServerWithHeartbeat(service *sandbox.Service, authentication sandbox.Aut
 		idempotency:         &idempotencyStore{entries: make(map[string]idempotencyEntry)},
 		snapshotIdempotency: &snapshotIdempotencyStore{entries: make(map[string]snapshotIdempotencyEntry)},
 		heartbeatInterval:   heartbeatInterval,
+		metrics:             metrics.NewRegistry(),
 	}
 }
 
@@ -72,9 +75,83 @@ func (server *Server) WithHeartbeat(interval time.Duration) *Server {
 	return server
 }
 
+func (server *Server) MetricsHandler() http.Handler {
+	return server.metrics.Handler()
+}
+
 func (server *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
+	started := time.Now()
+	observed := &statusWriter{ResponseWriter: writer}
 	handler := requestid.Middleware(http.HandlerFunc(server.route))
-	handler.ServeHTTP(writer, request)
+	handler.ServeHTTP(observed, request)
+	server.observeRequest(request, observed.statusCode, time.Since(started))
+}
+
+type statusWriter struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func (writer *statusWriter) WriteHeader(statusCode int) {
+	writer.statusCode = statusCode
+	writer.ResponseWriter.WriteHeader(statusCode)
+}
+
+func (writer *statusWriter) Write(body []byte) (int, error) {
+	if writer.statusCode == 0 {
+		writer.WriteHeader(http.StatusOK)
+	}
+	return writer.ResponseWriter.Write(body)
+}
+
+func (writer *statusWriter) Flush() {
+	if writer.statusCode == 0 {
+		writer.WriteHeader(http.StatusOK)
+	}
+	if flusher, ok := writer.ResponseWriter.(http.Flusher); ok {
+		flusher.Flush()
+	}
+}
+
+func (server *Server) observeRequest(request *http.Request, statusCode int, duration time.Duration) {
+	if server.metrics == nil {
+		return
+	}
+	if statusCode == 0 {
+		statusCode = http.StatusOK
+	}
+	outcome := "success"
+	if statusCode >= http.StatusBadRequest {
+		outcome = "failure"
+	}
+	labels := map[string]string{"outcome": outcome}
+	switch {
+	case request.Method == http.MethodPost && request.URL.Path == "/v1/sandboxes":
+		server.metrics.Inc("sandbox_create_total", labels)
+		if outcome == "failure" {
+			server.metrics.Inc("sandbox_create_failure_total", labels)
+		} else {
+			server.metrics.Observe("sandbox_ready_seconds", duration.Seconds(), labels)
+		}
+	case request.Method == http.MethodDelete && strings.HasPrefix(request.URL.Path, "/v1/sandboxes/"):
+		server.metrics.Inc("sandbox_destroy_total", labels)
+	case request.Method == http.MethodPost && strings.HasSuffix(request.URL.Path, "/commands"):
+		server.metrics.Inc("command_total", labels)
+		server.metrics.Observe("command_duration_seconds", duration.Seconds(), labels)
+		if statusCode == http.StatusRequestTimeout {
+			server.metrics.Inc("command_timeout_total", labels)
+		}
+	case request.Method == http.MethodPost && strings.HasSuffix(request.URL.Path, "/snapshots"):
+		server.metrics.Inc("snapshot_total", labels)
+		if outcome == "failure" {
+			server.metrics.Inc("snapshot_failure_total", labels)
+		}
+	case request.Method == http.MethodPost && strings.HasSuffix(request.URL.Path, "/restore"):
+		server.metrics.Inc("snapshot_restore_total", labels)
+	}
+	if statusCode >= http.StatusInternalServerError {
+		server.metrics.Inc("runtime_health_failure_total", labels)
+	}
 }
 
 func PrincipalFromContext(ctx context.Context) (sandbox.Principal, bool) {
@@ -299,6 +376,7 @@ func (server *Server) createSnapshot(writer http.ResponseWriter, request *http.R
 		return
 	}
 	writer.Header().Set("Location", snapshotPath(snapshot.ID))
+	server.metrics.Observe("snapshot_bytes", float64(snapshot.ByteSize), map[string]string{"outcome": "success"})
 	server.writeJSON(writer, http.StatusAccepted, toContractSnapshot(snapshot))
 }
 

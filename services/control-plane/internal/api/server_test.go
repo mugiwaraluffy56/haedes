@@ -162,6 +162,29 @@ func TestListAndDestroyRoutesReturnDocumentedResponses(t *testing.T) {
 	}
 }
 
+func TestMetricsExposeLifecycleAndCommandMeasurements(t *testing.T) {
+	server, _, _, _ := testServerWithRuntime(t, "owner-1")
+	createSandboxForCommand(t, server)
+
+	command := httptest.NewRequest(http.MethodPost, "/v1/sandboxes/sbx_001/commands", strings.NewReader(`{"command":"printf metrics"}`))
+	command.Header.Set("Authorization", "Bearer test-api-key")
+	server.ServeHTTP(httptest.NewRecorder(), command)
+	destroy := httptest.NewRequest(http.MethodDelete, "/v1/sandboxes/sbx_001", nil)
+	destroy.Header.Set("Authorization", "Bearer test-api-key")
+	server.ServeHTTP(httptest.NewRecorder(), destroy)
+
+	recorder := httptest.NewRecorder()
+	server.MetricsHandler().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/metrics", nil))
+	if recorder.Code != http.StatusOK || recorder.Header().Get("Content-Type") != "text/plain; version=0.0.4" {
+		t.Fatalf("metrics response: status=%d headers=%#v", recorder.Code, recorder.Header())
+	}
+	for _, metric := range []string{"sandbox_create_total", "sandbox_ready_seconds", "command_total", "command_duration_seconds", "sandbox_destroy_total"} {
+		if !strings.Contains(recorder.Body.String(), metric) {
+			t.Fatalf("metrics output is missing %s:\n%s", metric, recorder.Body.String())
+		}
+	}
+}
+
 func TestSnapshotRoutesCreateIdempotentlyListGetAndRestore(t *testing.T) {
 	server, snapshots, store, runtime := testSnapshotServer(t, "owner-1")
 	createSandboxForSnapshot(t, server)
