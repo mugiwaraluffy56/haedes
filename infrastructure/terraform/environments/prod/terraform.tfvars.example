@@ -5,6 +5,11 @@ snapshot_retention_days = 365
 log_retention_days      = 90
 control_plane_image_uri = "123456789012.dkr.ecr.us-east-1.amazonaws.com/haedes/prod/control-plane@sha256:0000000000000000000000000000000000000000000000000000000000000000"
 sandbox_image_uri       = "123456789012.dkr.ecr.us-east-1.amazonaws.com/haedes/prod/sandbox@sha256:0000000000000000000000000000000000000000000000000000000000000000"
+control_plane_cpu       = 1024
+control_plane_memory    = 2048
+sandbox_cpu             = 2048
+sandbox_memory          = 4096
+control_plane_desired_count = 2
 
 tags = {
   Owner      = "platform"

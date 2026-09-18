@@ -3,6 +3,11 @@ project_name         = "haedes"
 availability_zones   = ["us-east-1a", "us-east-1b"]
 control_plane_image_uri = "123456789012.dkr.ecr.us-east-1.amazonaws.com/haedes/dev/control-plane:dev"
 sandbox_image_uri       = "123456789012.dkr.ecr.us-east-1.amazonaws.com/haedes/dev/sandbox:dev"
+control_plane_cpu       = 512
+control_plane_memory    = 1024
+sandbox_cpu             = 1024
+sandbox_memory          = 2048
+control_plane_desired_count = 1
 
 tags = {
   Owner      = "platform"

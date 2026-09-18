@@ -13,3 +13,27 @@ output "snapshot_bucket" {
 output "metadata_table" {
   value = module.platform.metadata_table
 }
+
+output "ecs_cluster_arn" {
+  value = module.platform.ecs_cluster_arn
+}
+
+output "control_plane_service_name" {
+  value = module.platform.control_plane_service_name
+}
+
+output "control_plane_alb_dns_name" {
+  value = module.platform.control_plane_alb_dns_name
+}
+
+output "control_plane_security_group_id" {
+  value = module.platform.control_plane_security_group_id
+}
+
+output "sandbox_security_group_id" {
+  value = module.platform.sandbox_security_group_id
+}
+
+output "sandbox_task_definition_arn" {
+  value = module.platform.sandbox_task_definition_arn
+}

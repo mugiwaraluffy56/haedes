@@ -18,13 +18,13 @@ output "private_subnet_ids" {
   value       = module.networking.private_subnet_ids
 }
 
-output "control_plane_security_group_id" {
-  description = "Security group for the public control-plane service."
+output "network_control_plane_security_group_id" {
+  description = "Foundation security group reserved for control-plane network dependencies."
   value       = module.networking.control_plane_security_group_id
 }
 
-output "sandbox_security_group_id" {
-  description = "Security group allowing runtime traffic only from control plane."
+output "network_sandbox_security_group_id" {
+  description = "Foundation security group reserved for sandbox network dependencies."
   value       = module.networking.sandbox_security_group_id
 }
 
@@ -66,4 +66,39 @@ output "control_plane_log_group" {
 output "sandbox_log_group" {
   description = "CloudWatch log group for sandbox runtime tasks."
   value       = module.logs.sandbox_log_group_name
+}
+
+output "ecs_cluster_arn" {
+  description = "ECS cluster ARN for sandbox task launches."
+  value       = module.ecs.cluster_arn
+}
+
+output "control_plane_service_name" {
+  description = "ECS control-plane service name."
+  value       = module.control_plane.service_name
+}
+
+output "control_plane_alb_dns_name" {
+  description = "Public ALB DNS name for the control-plane API."
+  value       = module.control_plane.alb_dns_name
+}
+
+output "sandbox_task_definition_arn" {
+  description = "Private per-sandbox task definition ARN."
+  value       = module.sandbox.task_definition_arn
+}
+
+output "control_plane_security_group_id" {
+  description = "Control-plane service security group ID."
+  value       = module.control_plane.service_security_group_id
+}
+
+output "sandbox_security_group_id" {
+  description = "Sandbox security group allowing runtime traffic only from the control-plane service."
+  value       = module.control_plane.sandbox_security_group_id
+}
+
+output "sandbox_execution_role_arn" {
+  description = "ECS execution role used to pull/log sandbox tasks; not exposed to containers."
+  value       = module.iam.sandbox_execution_role_arn
 }

@@ -53,3 +53,28 @@ variable "tags" {
     CostCenter = "production"
   }
 }
+
+variable "control_plane_cpu" {
+  type    = number
+  default = 1024
+}
+
+variable "control_plane_memory" {
+  type    = number
+  default = 2048
+}
+
+variable "sandbox_cpu" {
+  type    = number
+  default = 2048
+}
+
+variable "sandbox_memory" {
+  type    = number
+  default = 4096
+}
+
+variable "control_plane_desired_count" {
+  type    = number
+  default = 2
+}
