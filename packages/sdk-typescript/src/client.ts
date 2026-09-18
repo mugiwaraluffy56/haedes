@@ -1,7 +1,7 @@
 import { commandPayload } from './commands.js';
 import { normalizeConfig, type NormalizedConfig, type SandboxClientConfig } from './config.js';
 import { SandboxError } from './errors.js';
-import { eventFromFrame, isTerminalEvent, parseSse } from './events.js';
+import { eventFromFrame, isTerminalEvent, parseSse, SseProtocolError } from './events.js';
 import { SandboxCollection } from './sandbox.js';
 import type { CommandEvent, CommandResult, ExecOptions } from './types.js';
 
@@ -43,9 +43,10 @@ export class SandboxClient {
     options: Pick<ExecOptions, 'signal'> = {},
   ): AsyncGenerator<CommandEvent> {
     let lastEventId: string | undefined;
-    let reconnect = true;
+    let reconnectAttempted = false;
 
     while (true) {
+      options.signal?.throwIfAborted();
       const headers = new Headers({ Accept: 'text/event-stream' });
       if (lastEventId !== undefined) headers.set('Last-Event-ID', lastEventId);
       let response: Response;
@@ -57,19 +58,21 @@ export class SandboxClient {
         if (!response.ok) {
           throw await SandboxError.fromResponse(response);
         }
-        for await (const frame of parseSse(response)) {
+        for await (const frame of parseSse(response, options.signal)) {
           if (frame.id !== undefined) lastEventId = frame.id;
           const event = eventFromFrame(frame);
           yield event;
           if (isTerminalEvent(event)) return;
         }
       } catch (error) {
-        if (options.signal?.aborted) throw error;
-        if (error instanceof SandboxError) throw error;
-        if (!reconnect) throw error;
+        if (options.signal?.aborted) {
+          throw options.signal.reason ?? error;
+        }
+        if (error instanceof SandboxError || error instanceof SseProtocolError) throw error;
+        if (reconnectAttempted) throw error;
       }
-      if (!reconnect) return;
-      reconnect = false;
+      if (reconnectAttempted) return;
+      reconnectAttempted = true;
     }
   }
 

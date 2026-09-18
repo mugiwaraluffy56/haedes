@@ -19,6 +19,15 @@ const sandbox = await client.sandboxes.create({
 const result = await sandbox.exec('printf hello');
 console.log(result.exitCode);
 
+for await (const event of sandbox.execStream('npm test')) {
+  if (event.type === 'stdout' || event.type === 'stderr') {
+    process.stdout.write(event.data);
+  }
+  if (event.type === 'failed') {
+    console.error(`${event.code}: ${event.message}`);
+  }
+}
+
 await sandbox.writeFile('/workspace/README.md', '# demo');
 console.log(await sandbox.readFile('/workspace/README.md'));
 await sandbox.destroy();
@@ -26,3 +35,7 @@ await sandbox.destroy();
 
 Pass a custom `fetch` implementation and `requestTimeoutMs` when integrating
 with a runtime that needs its own transport or timeout policy.
+
+`execStream` yields ordered command events from the public SSE endpoint and
+automatically resumes once after a dropped connection using the last received
+event ID.
