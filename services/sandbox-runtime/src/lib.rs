@@ -4,4 +4,5 @@ pub mod filesystem;
 pub mod health;
 pub mod process;
 pub mod server;
+pub mod snapshot;
 pub mod streaming;
