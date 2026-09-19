@@ -1,7 +1,7 @@
-import type { components } from './generated';
+import type { components } from './generated.js';
 
-export * from './generated';
-export type { components } from './generated';
+export * from './generated.js';
+export type { components } from './generated.js';
 
 export type ApiError = components['schemas']['ApiError'];
 
