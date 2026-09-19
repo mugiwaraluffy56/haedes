@@ -2,10 +2,12 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import type { Page, Sandbox } from '@haedes/sdk';
 import { ErrorPanel } from './error-panel';
 import { SandboxCard } from './sandbox-card';
 import { StateBadge } from './state-badge';
+import { FadeIn, MotionToggle } from './motion';
 import { isNonTerminal, listSandboxes, toDashboardError, type DashboardError } from '../lib/api-client';
 
 export function SandboxList() {
@@ -39,7 +41,7 @@ export function SandboxList() {
 
   return (
     <main className="dashboard-shell">
-      <header className="dashboard-nav"><Link className="dashboard-wordmark" href="/"><span>h</span>haedes</Link><div className="dashboard-nav-right"><span className="api-indicator"><i /> Live API</span><Link href="/">Back to haedes ↗</Link></div></header>
+      <header className="dashboard-nav"><Link className="dashboard-wordmark" href="/"><Image src="/haedes-logo-white.svg" alt="" width={27} height={27} priority />haedes</Link><div className="dashboard-nav-right"><span className="api-indicator"><i /> Live API</span><MotionToggle /><Link href="/">Back to haedes ↗</Link></div></header>
       <section className="dashboard-hero">
         <div><p className="dashboard-eyebrow">Human observability / sandbox fleet</p><h1>Your computers,<br /><em>in view.</em></h1><p className="dashboard-lede">Watch agent work move from request to running computer to clean release.</p></div>
         <div className="fleet-summary"><span className="summary-label">SANDBOXES</span><strong>{page?.items.length ?? '—'}</strong><span className="summary-live">{activeCount} active lifecycle{activeCount === 1 ? '' : 's'}</span></div>
@@ -47,7 +49,7 @@ export function SandboxList() {
       {error && <ErrorPanel error={error} />}
       <section className="sandbox-section">
         <div className="section-toolbar"><div><span className="section-kicker">All sandboxes</span><h2>Execution fleet</h2></div><div className="toolbar-actions">{activeCount > 0 && <span className="polling-label"><i /> Polling active sandboxes</span>}<button type="button" onClick={() => void refresh()} disabled={refreshing}>{refreshing ? 'Refreshing…' : 'Refresh ↻'}</button></div></div>
-        {loading ? <div className="loading-grid" aria-label="Loading sandboxes"><div /><div /><div /></div> : page?.items.length ? <div className="sandbox-grid">{page.items.map((sandbox) => <SandboxCard key={sandbox.id} sandbox={sandbox} />)}</div> : <EmptyState />}
+        {loading ? <div className="loading-grid" aria-label="Loading sandboxes"><div /><div /><div /></div> : page?.items.length ? <div className="sandbox-grid">{page.items.map((sandbox, index) => <FadeIn key={sandbox.id} delay={index * 0.05}><SandboxCard sandbox={sandbox} /></FadeIn>)}</div> : <FadeIn><EmptyState /></FadeIn>}
       </section>
       <footer className="dashboard-footer"><span>haedes dashboard</span><span>Data comes from the configured /v1 API. No local mock state.</span></footer>
     </main>
