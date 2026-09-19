@@ -39,3 +39,14 @@ button { font: inherit; }
 @keyframes dashboard-enter { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
 @media (max-width: 850px) { .dashboard-hero { display: block; }.fleet-summary { width: 220px; margin-top: 35px; }.sandbox-grid, .loading-grid { grid-template-columns: repeat(2, 1fr); }.detail-grid { grid-template-columns: 1fr; } }
 @media (max-width: 560px) { .dashboard-nav, .dashboard-hero, .sandbox-section, .detail-content, .dashboard-footer, .error-panel { width: calc(100% - 36px); }.dashboard-nav { height: 72px; }.dashboard-nav-right { gap: 0; }.dashboard-nav-right a { display: none; }.dashboard-hero { padding: 60px 0 48px; }.dashboard-hero h1 { font-size: 53px; }.sandbox-grid, .loading-grid { grid-template-columns: 1fr; }.section-toolbar { display: block; }.toolbar-actions { justify-content: space-between; margin-top: 18px; }.detail-heading { display: block; }.detail-heading .state-badge { margin-top: 20px; }.status-banner { align-items: flex-start; }.status-state { display: none; }.dashboard-footer { flex-direction: column; gap: 9px; } }
+
+/* TypeUI-inspired restraint: neutral paper, architectural borders, sparse accent. */
+:root { --bg: #0a0a0a; --panel: #111111; --panel-2: #171717; --ink: #fafafa; --muted: #a3a3a3; --dim: #737373; --line: #262626; --mint: #f63049; --orange: #d02752; --red: #f63049; }
+body { background: var(--bg); }
+.dashboard-shell { background: var(--bg); }
+.dashboard-hero h1 { max-width: 850px; font-size: clamp(44px, 6vw, 64px); }
+.fleet-summary, .detail-card, .repository-panel { background: #111111; }
+.sandbox-card { background: #111111; box-shadow: none; }
+.sandbox-card:hover { box-shadow: none; }
+.status-banner { background: #111111; }
+.status-orb { box-shadow: 0 0 0 8px rgba(246,48,73,.08); }
