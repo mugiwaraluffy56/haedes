@@ -17,6 +17,6 @@ for module in services/control-plane services/lifecycle-manager services/snapsho
   (cd "$module" && go mod verify)
 done
 
-cargo audit --locked
+cargo audit
 
 echo "dependency checks passed"
