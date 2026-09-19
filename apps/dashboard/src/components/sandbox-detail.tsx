@@ -41,7 +41,7 @@ export function SandboxDetail({ id }: { id: string }) {
 
   return (
     <main className="dashboard-shell detail-shell">
-      <header className="dashboard-nav"><a className="dashboard-wordmark" href="/"><span>h</span>haedes</a><div className="dashboard-nav-right"><span className="api-indicator"><i /> Live API</span><Link href="/sandboxes">All sandboxes ↗</Link></div></header>
+      <header className="dashboard-nav"><Link className="dashboard-wordmark" href="/"><span>h</span>haedes</Link><div className="dashboard-nav-right"><span className="api-indicator"><i /> Live API</span><Link href="/sandboxes">All sandboxes ↗</Link></div></header>
       <div className="detail-content">
         <Link className="back-link" href="/sandboxes">← Back to execution fleet</Link>
         {loading && <div className="detail-loading"><div /><div /><div /></div>}

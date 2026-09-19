@@ -8,21 +8,22 @@ fn relative_and_absolute_workspace_paths_resolve_inside_root() {
     let workspace = tempdir().unwrap();
     fs::create_dir(workspace.path().join("src")).unwrap();
     fs::write(workspace.path().join("src/main.rs"), "fn main() {}").unwrap();
+    let workspace_root = fs::canonicalize(workspace.path()).unwrap();
     let guard = PathGuard::new(workspace.path()).unwrap();
 
     assert_eq!(
         guard.resolve("src/main.rs").unwrap(),
-        workspace.path().join("src/main.rs")
+        workspace_root.join("src/main.rs")
     );
     assert_eq!(
         guard.resolve("/workspace/src/main.rs").unwrap(),
-        workspace.path().join("src/main.rs")
+        workspace_root.join("src/main.rs")
     );
     assert_eq!(
         guard
-            .resolve(workspace.path().join("src/main.rs").to_str().unwrap())
+            .resolve(workspace_root.join("src/main.rs").to_str().unwrap())
             .unwrap(),
-        workspace.path().join("src/main.rs")
+        workspace_root.join("src/main.rs")
     );
 }
 
@@ -56,10 +57,11 @@ fn traversal_encoded_paths_nul_and_outside_paths_are_rejected() {
 #[test]
 fn missing_ancestors_are_rejected_but_a_missing_leaf_is_safe() {
     let workspace = tempdir().unwrap();
+    let workspace_root = fs::canonicalize(workspace.path()).unwrap();
     let guard = PathGuard::new(workspace.path()).unwrap();
 
     let missing_leaf = guard.resolve("new.txt").unwrap();
-    assert_eq!(missing_leaf, workspace.path().join("new.txt"));
+    assert_eq!(missing_leaf, workspace_root.join("new.txt"));
     assert!(matches!(
         guard.resolve("missing/new.txt"),
         Err(PathError::MissingAncestor)
@@ -85,6 +87,7 @@ fn symlinks_must_resolve_inside_the_workspace() {
         workspace.path().join("inside-link"),
     )
     .unwrap();
+    let workspace_root = fs::canonicalize(workspace.path()).unwrap();
     let guard = PathGuard::new(workspace.path()).unwrap();
 
     assert!(matches!(
@@ -93,6 +96,6 @@ fn symlinks_must_resolve_inside_the_workspace() {
     ));
     assert_eq!(
         guard.resolve("inside-link").unwrap(),
-        workspace.path().join("inside.txt")
+        workspace_root.join("inside.txt")
     );
 }

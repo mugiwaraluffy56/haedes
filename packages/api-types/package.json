@@ -12,7 +12,7 @@
   "scripts": {
     "build": "node -e \"process.exit(0)\"",
     "lint": "node -e \"process.exit(0)\"",
-    "test": "tsx test/index.test.ts",
+    "test": "node --import tsx/esm test/index.test.ts",
     "typecheck": "node -e \"process.exit(0)\""
   }
 }
