@@ -55,7 +55,9 @@ async fn commands_use_workspace_cwd_and_injected_environment() {
 async fn commands_do_not_inherit_cloud_credentials() {
     let (_workspace, runner) = runner();
     let result = runner
-        .run(request("printf '%s:%s' \"${AWS_ACCESS_KEY_ID-unset}\" \"${AWS_PROFILE-unset}\""))
+        .run(request(
+            "printf '%s:%s' \"${AWS_ACCESS_KEY_ID-unset}\" \"${AWS_PROFILE-unset}\"",
+        ))
         .await
         .unwrap();
 

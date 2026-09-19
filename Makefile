@@ -1,17 +1,36 @@
-.PHONY: build check format format-check generate generate-write lint test typecheck
+.PHONY: build check check-core check-contracts check-containers check-terraform check-security \
+	check-dependencies check-secrets format format-check generate generate-write lint test typecheck
 
 build:
 	pnpm build
 
 check:
-	./scripts/check-repo.sh
-	./scripts/generate-contracts.sh --check
-	pnpm validate:contracts
-	pnpm lint
-	pnpm test
-	pnpm typecheck
-	./scripts/go-test.sh
-	cargo check --workspace
+	$(MAKE) check-core
+	$(MAKE) check-contracts
+	$(MAKE) check-containers
+	$(MAKE) check-terraform
+	$(MAKE) check-security
+
+check-core:
+	./scripts/check-core.sh
+
+check-contracts:
+	./scripts/check-contracts.sh
+
+check-containers:
+	./scripts/check-containers.sh
+
+check-terraform:
+	./scripts/check-terraform.sh
+
+check-security:
+	./scripts/check-security.sh
+
+check-dependencies:
+	./scripts/check-dependencies.sh
+
+check-secrets:
+	./scripts/check-secrets.sh
 
 format:
 	cargo fmt --all

@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-FROM --platform=linux/amd64 rust:1.80.1-bookworm@sha256:b6f344496c19f4a91adffeb1c6f3975ed4f0c134965451cc96505002f8a7bd1a AS builder
+FROM --platform=linux/amd64 rust:1.80.1-bookworm@sha256:883df89a3ed53fb0e0f6a67d79cfebf72906d97f9d816379fdf941af969be1b5 AS builder
 
 WORKDIR /src
 COPY Cargo.toml Cargo.lock ./

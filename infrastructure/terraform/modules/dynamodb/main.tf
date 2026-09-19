@@ -61,8 +61,8 @@ resource "aws_dynamodb_table" "snapshots" {
 
   global_secondary_index {
     name            = "sandbox-createdAt-index"
-    hash_key       = "sandboxId"
-    range_key      = "createdAt"
+    hash_key        = "sandboxId"
+    range_key       = "createdAt"
     projection_type = "ALL"
   }
 

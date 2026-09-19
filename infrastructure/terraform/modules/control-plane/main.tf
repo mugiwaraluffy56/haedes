@@ -77,11 +77,11 @@ resource "aws_ecs_task_definition" "control_plane" {
   task_role_arn            = var.task_role_arn
 
   container_definitions = jsonencode([{
-    name      = "control-plane"
-    image     = var.image_uri
-    cpu       = var.cpu
-    memory    = var.memory
-    essential = true
+    name                   = "control-plane"
+    image                  = var.image_uri
+    cpu                    = var.cpu
+    memory                 = var.memory
+    essential              = true
     readonlyRootFilesystem = true
     portMappings = [{
       containerPort = 8080
@@ -124,7 +124,7 @@ resource "aws_lb" "public" {
   subnets            = var.public_subnet_ids
 
   enable_deletion_protection = var.environment == "prod"
-  tags                        = merge(var.tags, { Name = "${var.project_name}-${var.environment}-api" })
+  tags                       = merge(var.tags, { Name = "${var.project_name}-${var.environment}-api" })
 }
 
 resource "aws_lb_target_group" "control_plane" {

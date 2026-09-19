@@ -3,9 +3,7 @@ use axum::{
     http::{Request, StatusCode},
 };
 use haedes_sandbox_runtime::{
-    config::Config,
-    filesystem::DEFAULT_MAX_FILE_BYTES,
-    server::build_router,
+    config::Config, filesystem::DEFAULT_MAX_FILE_BYTES, server::build_router,
     snapshot::MAX_ARCHIVE_BYTES,
 };
 use serde_json::Value;

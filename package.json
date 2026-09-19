@@ -23,7 +23,13 @@
     "typecheck:integration": "./integrations/mcp/node_modules/.bin/tsc --noEmit -p tests/integration/tsconfig.json",
     "typecheck": "turbo run typecheck",
     "check:repo": "./scripts/check-repo.sh",
-    "check": "pnpm check:repo && pnpm generate && pnpm validate:contracts && pnpm lint && pnpm typecheck && pnpm test"
+    "check:ci": "make check",
+    "check:core": "make check-core",
+    "check:contracts": "make check-contracts",
+    "check:containers": "make check-containers",
+    "check:terraform": "make check-terraform",
+    "check:security": "make check-security",
+    "check": "make check"
   },
   "devDependencies": {
     "ajv": "^8.17.1",
