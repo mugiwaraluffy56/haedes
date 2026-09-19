@@ -20,7 +20,7 @@
     "format:check": "cargo fmt --all -- --check",
     "generate": "./scripts/generate-contracts.sh --check",
     "lint": "turbo run lint",
-    "validate:contracts": "tsx scripts/validate-contracts.ts",
+    "validate:contracts": "node --import tsx/esm scripts/validate-contracts.ts",
     "test": "turbo run test",
     "test:integration": "node --import tsx/esm tests/integration/client-journey.test.ts",
     "test:load": "node tests/load/run-load.mjs --dry-run",
