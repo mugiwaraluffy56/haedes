@@ -4,6 +4,11 @@
   "private": true,
   "description": "Temporary AWS computers for AI agents",
   "packageManager": "pnpm@9.15.5",
+  "pnpm": {
+    "overrides": {
+      "postcss": "8.5.18"
+    }
+  },
   "engines": {
     "node": ">=20.18.0",
     "pnpm": ">=9.15.5 <10"

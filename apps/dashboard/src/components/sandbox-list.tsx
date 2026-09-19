@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import type { Page, Sandbox } from '@haedes/sdk';
 import { ErrorPanel } from './error-panel';
@@ -38,7 +39,7 @@ export function SandboxList() {
 
   return (
     <main className="dashboard-shell">
-      <header className="dashboard-nav"><a className="dashboard-wordmark" href="/"><span>h</span>haedes</a><div className="dashboard-nav-right"><span className="api-indicator"><i /> Live API</span><a href="/">Back to haedes ↗</a></div></header>
+      <header className="dashboard-nav"><Link className="dashboard-wordmark" href="/"><span>h</span>haedes</Link><div className="dashboard-nav-right"><span className="api-indicator"><i /> Live API</span><Link href="/">Back to haedes ↗</Link></div></header>
       <section className="dashboard-hero">
         <div><p className="dashboard-eyebrow">Human observability / sandbox fleet</p><h1>Your computers,<br /><em>in view.</em></h1><p className="dashboard-lede">Watch agent work move from request to running computer to clean release.</p></div>
         <div className="fleet-summary"><span className="summary-label">SANDBOXES</span><strong>{page?.items.length ?? '—'}</strong><span className="summary-live">{activeCount} active lifecycle{activeCount === 1 ? '' : 's'}</span></div>
