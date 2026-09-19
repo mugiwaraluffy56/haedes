@@ -1,3 +1,6 @@
+import { FadeIn, MotionToggle } from '../src/components/motion';
+import Image from 'next/image';
+
 const dashboardUrl = process.env.NEXT_PUBLIC_DASHBOARD_URL ?? '/dashboard';
 
 const sdkExample = `const sandbox = await client.sandboxes.create({
@@ -23,19 +26,20 @@ export default function Home() {
     <main>
       <nav className="nav shell" aria-label="Main navigation">
         <a className="wordmark" href="#top" aria-label="haedes home">
-          <span className="wordmark-mark">h</span>
+          <Image className="wordmark-logo" src="/haedes-logo-white.svg" alt="" width={28} height={28} priority />
           <span>haedes</span>
         </a>
         <div className="nav-links">
           <a href="#platform">Platform</a>
           <a href="#how-it-works">How it works</a>
           <a href="#developers">Developers</a>
+          <MotionToggle />
           <a className="nav-cta" href={dashboardUrl}>Open dashboard <span aria-hidden="true">↗</span></a>
         </div>
       </nav>
 
       <section className="hero shell" id="top">
-        <div className="hero-copy">
+        <FadeIn className="hero-copy">
           <p className="eyebrow"><span className="eyebrow-dot" /> Agent execution infrastructure</p>
           <h1>Give your AI agent <em>a computer on AWS.</em></h1>
           <p className="hero-lede">
@@ -50,9 +54,9 @@ export default function Home() {
             <span className="status-pulse" />
             <span>One sandbox</span><b>·</b><span>One private task</span><b>·</b><span>Zero lasting infrastructure</span>
           </div>
-        </div>
+        </FadeIn>
 
-        <div className="hero-visual" aria-label="A sandbox lifecycle from request to a running workspace">
+        <FadeIn className="hero-visual" delay={0.12} ariaLabel="A sandbox lifecycle from request to a running workspace">
           <div className="visual-glow" />
           <div className="visual-card visual-card-back" />
           <div className="visual-card visual-card-main">
@@ -68,7 +72,7 @@ export default function Home() {
           </div>
           <div className="floating-chip chip-task"><span className="chip-icon">⌁</span><span><small>AWS COMPUTE</small><strong>Fargate task</strong></span></div>
           <div className="floating-chip chip-snapshot"><span className="chip-icon">◌</span><span><small>WORKSPACE</small><strong>Snapshot ready</strong></span></div>
-        </div>
+        </FadeIn>
       </section>
 
       <section className="section shell brain-section" id="platform">
@@ -139,7 +143,7 @@ export default function Home() {
         </div>
       </section>
 
-      <footer className="footer shell"><a className="wordmark" href="#top"><span className="wordmark-mark">h</span><span>haedes</span></a><span>Give your AI agent a computer on AWS.</span><a href="#top">Back to top ↑</a></footer>
+      <footer className="footer shell"><a className="wordmark" href="#top"><Image className="wordmark-logo" src="/haedes-logo-white.svg" alt="" width={28} height={28} /><span>haedes</span></a><span>Give your AI agent a computer on AWS.</span><a href="#top">Back to top ↑</a></footer>
     </main>
   );
 }

@@ -18,7 +18,7 @@ See the [ownership matrix](docs/architecture/ownership.md) for the review bounda
 
 ## Local checks
 
-Use Node 20.18+, pnpm 9.15+, Go 1.23+, and Rust 1.80+. From the repository root:
+Use Node 20.18+, pnpm 9.15+, Go 1.24+, and Rust 1.88+. From the repository root:
 
 ```sh
 make check

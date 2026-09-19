@@ -76,7 +76,7 @@ pub fn build_router(config: Config) -> Router {
     let protected = Router::new()
         .route("/status", get(runtime_status))
         .route("/commands", post(start_command))
-        .route("/commands/:id/events", get(command_events))
+        .route("/commands/{id}/events", get(command_events))
         .route("/files", get(list_files))
         .route(
             "/files/content",
