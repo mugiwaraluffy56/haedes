@@ -772,7 +772,13 @@ Each ticket is tracked by one GitHub issue. Issue titles use the `feat:` convent
 
 **Owner:** unassigned
 
-**Status:** blocked
+**Status:** in progress
+
+The reproducible release gate and scope audit are documented in
+[`docs/release-rehearsal.md`](release-rehearsal.md) and
+[`docs/decisions/0004-hackathon-scope.md`](decisions/0004-hackathon-scope.md).
+The live AWS rehearsal remains pending a configured deployment, AWS access,
+Terraform, and the verified agent environment.
 
 - [ ] The agent creates, uses, snapshots, destroys, restores, retests, and destroys again without manual state repair.
 - [ ] The team verifies ECS lifecycle, CloudWatch logs, S3 snapshot, DynamoDB metadata, stopped tasks, no public objects, and no sandbox credentials.
