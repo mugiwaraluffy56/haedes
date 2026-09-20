@@ -30,8 +30,14 @@ required_files=(
   docs/architecture/repository.md
   docs/architecture/ownership.md
   docs/architecture/state-machine.md
+  docs/architecture/README.md
   docs/api/public-api.md
   docs/api/runtime-protocol.md
+  docs/security/README.md
+  docs/aws/README.md
+  docs/aws/operations.md
+  docs/coding-agent-demo.md
+  docs/agent-compatibility.md
   docs/decisions/0001-monorepo-boundaries.md
   scripts/generate-contracts.sh
   scripts/generate-go-models.mjs
