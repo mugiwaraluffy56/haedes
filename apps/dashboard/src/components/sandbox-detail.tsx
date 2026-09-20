@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useCallback, useEffect, useState } from 'react';
 import type { Sandbox } from '@haedes/sdk';
 import { AwsStatus } from './aws-status';
@@ -41,7 +42,7 @@ export function SandboxDetail({ id }: { id: string }) {
 
   return (
     <main className="dashboard-shell detail-shell">
-      <header className="dashboard-nav"><Link className="dashboard-wordmark" href="/"><span>h</span>haedes</Link><div className="dashboard-nav-right"><span className="api-indicator"><i /> Live API</span><Link href="/sandboxes">All sandboxes ↗</Link></div></header>
+      <header className="dashboard-nav shell"><Link className="dashboard-wordmark" href="/"><Image src="/haedes-logo-white.svg" alt="haedes" width={20} height={20} priority /></Link><div className="dashboard-nav-right"><span className="api-indicator"><i /> Live API</span><Link href="/sandboxes">All sandboxes</Link></div></header>
       <div className="detail-content">
         <Link className="back-link" href="/sandboxes">← Back to execution fleet</Link>
         {loading && <div className="detail-loading"><div /><div /><div /></div>}

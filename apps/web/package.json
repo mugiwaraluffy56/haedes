@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "build": "next build",
-    "dev": "next dev",
+    "dev": "next dev --port 3000",
     "lint": "next lint",
     "test": "node -e \"process.exit(0)\"",
     "typecheck": "tsc --noEmit"
