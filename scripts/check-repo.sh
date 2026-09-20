@@ -37,8 +37,10 @@ required_files=(
   docs/aws/README.md
   docs/aws/operations.md
   docs/coding-agent-demo.md
+  docs/release-rehearsal.md
   docs/agent-compatibility.md
   docs/decisions/0001-monorepo-boundaries.md
+  docs/decisions/0004-hackathon-scope.md
   scripts/generate-contracts.sh
   scripts/generate-go-models.mjs
   scripts/validate-contracts.ts

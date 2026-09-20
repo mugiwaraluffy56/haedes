@@ -15,3 +15,5 @@ haedes is the computer.
 - [AWS deployment](docs/aws/README.md)
 - [AWS verification and cleanup](docs/aws/operations.md)
 - [Coding-agent demo](docs/coding-agent-demo.md)
+- [Final release rehearsal](docs/release-rehearsal.md)
+- [Hackathon scope decision](docs/decisions/0004-hackathon-scope.md)
