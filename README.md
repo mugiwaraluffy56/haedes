@@ -7,3 +7,11 @@ haedes gives AI agents temporary, isolated Linux computers on AWS. Agents can us
 The agent is the brain.
 
 haedes is the computer.
+
+## Runbooks
+
+- [Architecture and data flow](docs/architecture/README.md)
+- [Security and threat model](docs/security/README.md)
+- [AWS deployment](docs/aws/README.md)
+- [AWS verification and cleanup](docs/aws/operations.md)
+- [Coding-agent demo](docs/coding-agent-demo.md)

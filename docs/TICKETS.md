@@ -756,11 +756,11 @@ Each ticket is tracked by one GitHub issue. Issue titles use the `feat:` convent
 
 **Owner:** unassigned
 
-**Status:** blocked
+**Status:** complete
 
-- [ ] Runbooks explain what AWS resources were created, how to inspect ECS, CloudWatch, S3, DynamoDB, and orphan tasks, and how to clean up.
-- [ ] Architecture and security docs state the ownership boundaries, no-credential model, `/workspace` isolation, lifecycle, and snapshot behavior.
-- [ ] The demo script begins in the verified coding agent; curl is retained for debugging and infrastructure verification.
+- [x] Runbooks explain what AWS resources were created, how to inspect ECS, CloudWatch, S3, DynamoDB, and orphan tasks, and how to clean up.
+- [x] Architecture and security docs state the ownership boundaries, no-credential model, `/workspace` isolation, lifecycle, and snapshot behavior.
+- [x] The demo script begins in the verified coding agent; curl is retained for debugging and infrastructure verification.
 
 ### 45: Perform final release rehearsal and scope audit
 
