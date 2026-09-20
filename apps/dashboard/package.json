@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "next build",
-    "dev": "next dev",
+    "dev": "next dev --port 3001",
     "lint": "next lint",
     "test": "node -e \"process.exit(0)\"",
     "typecheck": "tsc --noEmit"

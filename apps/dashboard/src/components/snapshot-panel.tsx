@@ -23,7 +23,7 @@ export function SnapshotPanel({ sandbox, onChanged }: { sandbox: Sandbox; onChan
     setError(null);
     try {
       const restored = await restoreSnapshot(snapshotId);
-      window.location.assign(`/sandboxes/${encodeURIComponent(restored.id)}`);
+      window.location.assign(`/dashboard/sandboxes/${encodeURIComponent(restored.id)}`);
     } catch (cause) { setError(toDashboardError(cause)); setBusy(null); }
   }
 
