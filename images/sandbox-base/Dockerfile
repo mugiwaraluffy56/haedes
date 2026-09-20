@@ -8,7 +8,7 @@ COPY services/sandbox-runtime/Cargo.toml services/sandbox-runtime/Cargo.toml
 COPY services/sandbox-runtime services/sandbox-runtime
 RUN cargo build --locked --release -p haedes-sandbox-runtime
 
-FROM --platform=linux/amd64 debian:bookworm-20251103-slim@sha256:f522a3167fb670cc4a4518fab6d8c4227fe4bc458f4c7294832383bf284d5e78
+FROM --platform=linux/amd64 debian:bookworm-slim@sha256:f3034a6ec3c1205360777c4aae76234998866ad18806ae62b63a3f84ccad782b
 
 ARG RUNTIME_VERSION=0.1.0
 
