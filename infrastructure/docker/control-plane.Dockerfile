@@ -1,10 +1,10 @@
-FROM golang:1.24-bookworm AS build
+FROM --platform=linux/amd64 golang:1.25.13-bookworm@sha256:40dfc169bd5ad8a8617e49c8ead7fe16c6873e79d6937539e9c2e5947b7984ef AS build
 
 WORKDIR /src
 COPY . .
 RUN go build -trimpath -ldflags='-s -w' -o /out/haedes-control-plane ./services/control-plane/cmd/server
 
-FROM debian:bookworm-slim
+FROM --platform=linux/amd64 debian:bookworm-slim@sha256:f3034a6ec3c1205360777c4aae76234998866ad18806ae62b63a3f84ccad782b
 
 ARG BUILD_SHA=dev
 LABEL org.opencontainers.image.title="haedes control plane" \
