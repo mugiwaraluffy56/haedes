@@ -14,12 +14,12 @@
     "@haedes/sdk": "workspace:*",
     "next": "15.5.24",
     "react": "18.3.1",
-    "react-dom": "18.3.1"
+    "react-dom": "19.3.0"
   },
   "devDependencies": {
     "@types/node": "22.13.10",
     "@types/react": "18.3.18",
-    "@types/react-dom": "18.3.5",
+    "@types/react-dom": "19.3.0",
     "eslint": "8.57.1",
     "eslint-config-next": "15.5.24",
     "typescript": "5.9.3"
