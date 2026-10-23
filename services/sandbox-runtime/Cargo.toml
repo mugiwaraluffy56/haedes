@@ -18,7 +18,7 @@ subtle = "2.6"
 tar = "0.4"
 thiserror = "1"
 tokio = { version = "1", features = ["macros", "net", "process", "rt-multi-thread", "signal", "sync", "fs", "io-util"] }
-zstd = "0.13"
+zstd = "0.14"
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }
