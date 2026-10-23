@@ -16,7 +16,7 @@ serde_json = "1"
 sha2 = "0.10"
 subtle = "2.6"
 tar = "0.4"
-thiserror = "1"
+thiserror = "2"
 tokio = { version = "1", features = ["macros", "net", "process", "rt-multi-thread", "signal", "sync", "fs", "io-util"] }
 zstd = "0.13"
 
